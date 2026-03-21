@@ -15,28 +15,35 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section {
-                TextField("App Key", text: $store.appKey)
-                    .textFieldStyle(.roundedBorder)
+                LabeledContent("App Key") {
+                    TextField("", text: $store.appKey)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 240)
+                }
 
-                HStack {
-                    if showAccessKey {
-                        TextField("Access Key", text: $store.accessKey)
-                            .textFieldStyle(.roundedBorder)
-                    } else {
-                        SecureField("Access Key", text: $store.accessKey)
-                            .textFieldStyle(.roundedBorder)
+                LabeledContent("Access Key") {
+                    HStack(spacing: 4) {
+                        if showAccessKey {
+                            TextField("", text: $store.accessKey)
+                                .textFieldStyle(.roundedBorder)
+                        } else {
+                            SecureField("", text: $store.accessKey)
+                                .textFieldStyle(.roundedBorder)
+                        }
+                        Button(action: { showAccessKey.toggle() }) {
+                            Image(systemName: showAccessKey ? "eye.slash" : "eye")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.borderless)
                     }
-                    Button(action: { showAccessKey.toggle() }) {
-                        Image(systemName: showAccessKey ? "eye.slash" : "eye")
-                    }
-                    .buttonStyle(.borderless)
+                    .frame(width: 240)
                 }
 
                 Picker("Resource ID", selection: $store.resourceId) {
-                    Text("2.0 小时版").tag("volc.seedasr.sauc.duration")
-                    Text("2.0 并发版").tag("volc.seedasr.sauc.concurrent")
-                    Text("1.0 小时版").tag("volc.bigasr.sauc.duration")
-                    Text("1.0 并发版").tag("volc.bigasr.sauc.concurrent")
+                    Text(L10n.resourceHourly20).tag("volc.seedasr.sauc.duration")
+                    Text(L10n.resourceConcurrent20).tag("volc.seedasr.sauc.concurrent")
+                    Text(L10n.resourceHourly10).tag("volc.bigasr.sauc.duration")
+                    Text(L10n.resourceConcurrent10).tag("volc.bigasr.sauc.concurrent")
                 }
 
                 HStack {
@@ -46,7 +53,7 @@ struct SettingsView: View {
                                 ProgressView()
                                     .controlSize(.small)
                             }
-                            Text("Test Connection")
+                            Text(L10n.testConnection)
                         }
                     }
                     .disabled(store.appKey.isEmpty || store.accessKey.isEmpty || isTestRunning)
@@ -57,7 +64,7 @@ struct SettingsView: View {
                     case .idle:
                         EmptyView()
                     case .testing:
-                        Text("Connecting...")
+                        Text(L10n.connecting)
                             .font(.callout)
                             .foregroundStyle(.secondary)
                     case .success(let msg):
@@ -80,46 +87,63 @@ struct SettingsView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 4))
                 }
             } header: {
-                Text("豆包 ASR API")
+                HStack {
+                    Text(L10n.asrApiHeader)
+                    Spacer()
+                    Link(L10n.getKey, destination: URL(string: "https://console.volcengine.com/speech/service/10038")!)
+                        .font(.callout)
+                }
             }
 
             Section {
                 Picker("", selection: $store.punctuationMode) {
-                    Text("空格代替标点").tag(PunctuationMode.spaceReplace)
-                    Text("句末不加标点").tag(PunctuationMode.removeTrailing)
-                    Text("保留所有标点").tag(PunctuationMode.keepAll)
+                    Text(L10n.punctSpaceReplace).tag(PunctuationMode.spaceReplace)
+                    Text(L10n.punctRemoveTrailing).tag(PunctuationMode.removeTrailing)
+                    Text(L10n.punctKeepAll).tag(PunctuationMode.keepAll)
                 }
                 .pickerStyle(.radioGroup)
                 .labelsHidden()
             } header: {
-                Text("标点展示")
+                Text(L10n.punctuationHeader)
             }
 
             Section {
                 Picker("", selection: $store.englishSpacingMode) {
-                    Text("前后无空格").tag(EnglishSpacingMode.noSpaces)
-                    Text("前后加空格").tag(EnglishSpacingMode.addSpaces)
+                    Text(L10n.spacingNone).tag(EnglishSpacingMode.noSpaces)
+                    Text(L10n.spacingAdd).tag(EnglishSpacingMode.addSpaces)
                 }
                 .pickerStyle(.radioGroup)
                 .labelsHidden()
             } header: {
-                Text("数字、英文展示")
+                Text(L10n.spacingHeader)
             }
 
             Section {
-                Text("Hold **fn** key to start recording.\nRelease to stop and insert text at cursor.")
+                Picker("", selection: $store.language) {
+                    ForEach(AppLanguage.allCases, id: \.self) { lang in
+                        Text(lang.displayName).tag(lang)
+                    }
+                }
+                .pickerStyle(.radioGroup)
+                .labelsHidden()
+            } header: {
+                Text(L10n.languageHeader)
+            }
+
+            Section {
+                Text(L10n.usageText)
                     .font(.callout)
                     .foregroundStyle(.secondary)
 
-                Text("Tip: In System Settings → Keyboard, set \"Press 🌐 key to\" → \"Do Nothing\" for best experience.")
+                Text(L10n.usageTip)
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             } header: {
-                Text("Usage")
+                Text(L10n.usageHeader)
             }
         }
         .formStyle(.grouped)
-        .frame(width: 420, height: 520)
+        .frame(width: 420, height: 580)
     }
 
     private var isTestRunning: Bool {

@@ -22,6 +22,17 @@ enum TextInjector {
         queue.sync { injectedText = "" }
     }
 
+    /// Delete all injected text and reset state.
+    static func clear() {
+        queue.sync {
+            let count = injectedText.count
+            if count > 0 {
+                sendBackspaces(count: count)
+            }
+            injectedText = ""
+        }
+    }
+
     /// Update the text at cursor to match the new full text from ASR.
     /// Handles both appending new characters and correcting revised text.
     static func update(fullText: String) {
