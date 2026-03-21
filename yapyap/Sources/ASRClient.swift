@@ -33,7 +33,7 @@ class ASRClient {
         seq = 1
         isDisconnecting = false
 
-        guard let url = URL(string: "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel") else {
+        guard let url = URL(string: "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async") else {
             logger.error("Invalid WebSocket URL")
             return
         }
@@ -43,7 +43,7 @@ class ASRClient {
         request.setValue(settings.accessKey, forHTTPHeaderField: "X-Api-Access-Key")
         request.setValue(settings.resourceId, forHTTPHeaderField: "X-Api-Resource-Id")
         let connectId = UUID().uuidString
-        request.setValue(connectId, forHTTPHeaderField: "X-Api-Connect-Id")
+        request.setValue(connectId, forHTTPHeaderField: "X-Api-Request-Id")
 
         logger.info("Connecting: resourceId=\(self.settings.resourceId), connectId=\(connectId)")
         logger.info("AppKey=\(self.settings.appKey.prefix(4))..., AccessKey=\(self.settings.accessKey.prefix(4))...")
@@ -100,7 +100,8 @@ class ASRClient {
                 "enable_punc": true,
                 "enable_ddc": true,
                 "show_utterances": true,
-                "enable_nonstream": false
+                "enable_nonstream": true,
+                "result_type": "full"
             ]
         ]
 
@@ -319,7 +320,7 @@ class ASRClient {
         completion: @escaping (Result<String, Error>) -> Void
     ) {
         logger.info("[Test] ========== Connection Test Start ==========")
-        logger.info("[Test] URL: https://openspeech.bytedance.com/api/v3/sauc/bigmodel")
+        logger.info("[Test] URL: https://openspeech.bytedance.com/api/v3/sauc/bigmodel_async")
         logger.info("[Test] X-Api-App-Key: \(appKey)")
         logger.info("[Test] X-Api-Access-Key: \(accessKey)")
         logger.info("[Test] X-Api-Resource-Id: \(resourceId)")
@@ -328,7 +329,7 @@ class ASRClient {
         logger.info("[Test] ================================================")
 
         // Step 1: HTTP pre-check to get readable error from server
-        guard let httpUrl = URL(string: "https://openspeech.bytedance.com/api/v3/sauc/bigmodel") else {
+        guard let httpUrl = URL(string: "https://openspeech.bytedance.com/api/v3/sauc/bigmodel_async") else {
             completion(.failure(TestError("Invalid URL")))
             return
         }
@@ -360,7 +361,7 @@ class ASRClient {
         resourceId: String,
         completion: @escaping (Result<String, Error>) -> Void
     ) {
-        guard let url = URL(string: "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel") else {
+        guard let url = URL(string: "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_async") else {
             completion(.failure(TestError("Invalid URL")))
             return
         }
@@ -370,7 +371,7 @@ class ASRClient {
         request.setValue(accessKey, forHTTPHeaderField: "X-Api-Access-Key")
         request.setValue(resourceId, forHTTPHeaderField: "X-Api-Resource-Id")
         let connectId = UUID().uuidString
-        request.setValue(connectId, forHTTPHeaderField: "X-Api-Connect-Id")
+        request.setValue(connectId, forHTTPHeaderField: "X-Api-Request-Id")
         logger.info("[Test] connectId=\(connectId)")
 
         let delegate = TestDelegate(completion: completion)
@@ -391,7 +392,8 @@ class ASRClient {
                 "enable_punc": true,
                 "enable_ddc": true,
                 "show_utterances": true,
-                "enable_nonstream": false
+                "enable_nonstream": true,
+                "result_type": "full"
             ]
         ]
 
