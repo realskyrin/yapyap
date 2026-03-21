@@ -84,6 +84,29 @@ struct SettingsView: View {
             }
 
             Section {
+                Picker("", selection: $store.punctuationMode) {
+                    Text("空格代替标点").tag(PunctuationMode.spaceReplace)
+                    Text("句末不加标点").tag(PunctuationMode.removeTrailing)
+                    Text("保留所有标点").tag(PunctuationMode.keepAll)
+                }
+                .pickerStyle(.radioGroup)
+                .labelsHidden()
+            } header: {
+                Text("标点展示")
+            }
+
+            Section {
+                Picker("", selection: $store.englishSpacingMode) {
+                    Text("前后无空格").tag(EnglishSpacingMode.noSpaces)
+                    Text("前后加空格").tag(EnglishSpacingMode.addSpaces)
+                }
+                .pickerStyle(.radioGroup)
+                .labelsHidden()
+            } header: {
+                Text("数字、英文展示")
+            }
+
+            Section {
                 Text("Hold **fn** key to start recording.\nRelease to stop and insert text at cursor.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -96,7 +119,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 420, height: 380)
+        .frame(width: 420, height: 520)
     }
 
     private var isTestRunning: Bool {

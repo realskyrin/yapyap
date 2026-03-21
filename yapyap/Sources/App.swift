@@ -87,7 +87,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         asrClient.onTextUpdate = { text in
-            TextInjector.update(fullText: text)
+            let processed = TextProcessor.process(text)
+            TextInjector.update(fullText: processed)
         }
 
         asrClient.connect()
