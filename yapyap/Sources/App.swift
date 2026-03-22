@@ -30,6 +30,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setupStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        statusItem.isVisible = true
         if let button = statusItem.button {
             button.image = NSImage(systemSymbolName: "mic", accessibilityDescription: "yapyap")
         }
