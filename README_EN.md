@@ -2,9 +2,9 @@
 
 [中文](README.md)
 
-macOS voice input tool — hold `fn` to speak, transcribed text is inserted at the cursor in real time.
+Lightweight macOS menu bar voice input tool (~700KB). Hold `fn` to speak, transcribed text is inserted at the cursor in real time.
 
-Powered by [Doubao Seed ASR](https://www.volcengine.com/docs/6561/163043) WebSocket API.
+A native Swift [Doubao Seed ASR](https://www.volcengine.com/docs/6561/163043) client with zero third-party dependencies.
 
 ## Features
 

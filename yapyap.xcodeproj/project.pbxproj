@@ -10,11 +10,11 @@
 		0BE64561FFFA12B91BE17D6F /* AudioEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30F0F85D62EA9D1962EB6C99 /* AudioEngine.swift */; };
 		345410B1DFC3F963A8CAD8A5 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E3FF9BE4023CDF2721086E9 /* App.swift */; };
 		3483F8A0604A31A42F574938 /* TextInjector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52B0BFD0EABFB723816C87B5 /* TextInjector.swift */; };
-		A1B2C3D4E5F60718A1B2C3D4 /* TextProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4C3B2A1F6E50817D4C3B2A1 /* TextProcessor.swift */; };
 		973A8F97F8F4D65FBE2BDDC0 /* KeyMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 959FBD13DCAB2732250D480A /* KeyMonitor.swift */; };
 		9B8F341DBE6F62081F7EEF0D /* OverlayWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BE3935D1F280E62F01B78CB /* OverlayWindow.swift */; };
 		BA526C4531AEAAC821656054 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 710DDCD36DDB21123243F33D /* SettingsView.swift */; };
 		BED19BE3FB8E8BC8024EF312 /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F122D7DBD16D89B70DFBAA73 /* SettingsStore.swift */; };
+		ED426A2B03CEEA4EB6A44212 /* TextProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F605C96EF7F32A1F67978EBA /* TextProcessor.swift */; };
 		F2166F3510E0E89A2A4E3071 /* ASRClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AF5C67BF95B1B58BEF6F7F9 /* ASRClient.swift */; };
 /* End PBXBuildFile section */
 
@@ -24,12 +24,12 @@
 		3AF5C67BF95B1B58BEF6F7F9 /* ASRClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ASRClient.swift; sourceTree = "<group>"; };
 		3E3FF9BE4023CDF2721086E9 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
 		52B0BFD0EABFB723816C87B5 /* TextInjector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextInjector.swift; sourceTree = "<group>"; };
-		D4C3B2A1F6E50817D4C3B2A1 /* TextProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextProcessor.swift; sourceTree = "<group>"; };
 		710DDCD36DDB21123243F33D /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		959FBD13DCAB2732250D480A /* KeyMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyMonitor.swift; sourceTree = "<group>"; };
 		CFB103102A3815782322312C /* yapyap.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = yapyap.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		DAF3FADD43C22010931BBB37 /* yapyap.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = yapyap.entitlements; sourceTree = "<group>"; };
 		F122D7DBD16D89B70DFBAA73 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
+		F605C96EF7F32A1F67978EBA /* TextProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextProcessor.swift; sourceTree = "<group>"; };
 		F6A18FDC4769A1B9C1A9ED1B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -55,7 +55,7 @@
 				F122D7DBD16D89B70DFBAA73 /* SettingsStore.swift */,
 				710DDCD36DDB21123243F33D /* SettingsView.swift */,
 				52B0BFD0EABFB723816C87B5 /* TextInjector.swift */,
-				D4C3B2A1F6E50817D4C3B2A1 /* TextProcessor.swift */,
+				F605C96EF7F32A1F67978EBA /* TextProcessor.swift */,
 			);
 			name = Sources;
 			path = yapyap/Sources;
@@ -141,7 +141,7 @@
 				BED19BE3FB8E8BC8024EF312 /* SettingsStore.swift in Sources */,
 				BA526C4531AEAAC821656054 /* SettingsView.swift in Sources */,
 				3483F8A0604A31A42F574938 /* TextInjector.swift in Sources */,
-				A1B2C3D4E5F60718A1B2C3D4 /* TextProcessor.swift in Sources */,
+				ED426A2B03CEEA4EB6A44212 /* TextProcessor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

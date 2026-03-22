@@ -2,9 +2,9 @@
 
 [English](README_EN.md)
 
-macOS 语音输入工具 —— 按住 `fn` 键说话，识别结果实时插入光标所在位置。
+轻量 macOS 菜单栏语音输入工具（~700KB），按住 `fn` 键说话，识别结果实时插入光标所在位置。
 
-基于[豆包大模型语音识别](https://www.volcengine.com/docs/6561/163043) (Seed ASR) WebSocket API。
+纯原生 Swift 实现的[豆包大模型语音识别](https://www.volcengine.com/docs/6561/163043) (Seed ASR) 客户端，无任何第三方依赖。
 
 ## 功能
 
