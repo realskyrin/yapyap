@@ -45,6 +45,17 @@ enum L10n {
     static var listening: String { lang == .zh ? "正在倾听" : "Listening" }
     static var keepOriginal: String { lang == .zh ? "保持原样" : "Keep original" }
 
+    // Menu bar
+    static var menuSettings: String { lang == .zh ? "设置…" : "Settings…" }
+    static var menuHoldFn: String { lang == .zh ? "按住 fn 开始录音" : "Hold fn to record" }
+    static var menuQuit: String { lang == .zh ? "退出 yapyap" : "Quit yapyap" }
+
+    // Alert
+    static var notConfiguredTitle: String { lang == .zh ? "yapyap 未配置" : "yapyap Not Configured" }
+    static var notConfiguredMessage: String { lang == .zh ? "请在设置中填写 App Key 和 Access Key。" : "Please set your App Key and Access Key in Settings." }
+    static var openSettings: String { lang == .zh ? "打开设置" : "Open Settings" }
+    static var cancel: String { lang == .zh ? "取消" : "Cancel" }
+
     // Startup dialog
     static var showMenuBarIcon: String { lang == .zh ? "显示菜单栏图标" : "Show Menu Bar Icon" }
     static var permissionsHeader: String { lang == .zh ? "所需权限" : "Required Permissions" }

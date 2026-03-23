@@ -24,6 +24,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var startupWindow: NSWindow?
     private var cancellables = Set<AnyCancellable>()
     private var showMenuBarCancellable: AnyCancellable?
+    private var languageCancellable: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         showStartupDialog()
@@ -65,17 +66,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             button.image = NSImage(systemSymbolName: "mic", accessibilityDescription: "yapyap")
         }
 
-        let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ","))
-        menu.addItem(NSMenuItem.separator())
-
-        let instructions = NSMenuItem(title: "Hold fn to record", action: nil, keyEquivalent: "")
-        instructions.isEnabled = false
-        menu.addItem(instructions)
-
-        menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Quit yapyap", action: #selector(quitApp), keyEquivalent: "q"))
-        statusItem.menu = menu
+        buildMenu()
 
         // Observe showMenuBar changes to toggle visibility immediately
         showMenuBarCancellable = SettingsStore.shared.$showMenuBar
@@ -83,6 +74,27 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             .sink { [weak self] visible in
                 self?.statusItem.isVisible = visible
             }
+
+        // Rebuild menu when language changes
+        languageCancellable = SettingsStore.shared.$language
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.buildMenu()
+            }
+    }
+
+    private func buildMenu() {
+        let menu = NSMenu()
+        menu.addItem(NSMenuItem(title: L10n.menuSettings, action: #selector(openSettings), keyEquivalent: ","))
+        menu.addItem(NSMenuItem.separator())
+
+        let instructions = NSMenuItem(title: L10n.menuHoldFn, action: nil, keyEquivalent: "")
+        instructions.isEnabled = false
+        menu.addItem(instructions)
+
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(NSMenuItem(title: L10n.menuQuit, action: #selector(quitApp), keyEquivalent: "q"))
+        statusItem.menu = menu
     }
 
     private func setupComponents() {
@@ -166,11 +178,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func showNotConfiguredAlert() {
         DispatchQueue.main.async {
             let alert = NSAlert()
-            alert.messageText = "yapyap Not Configured"
-            alert.informativeText = "Please set your App Key and Access Key in Settings."
+            alert.messageText = L10n.notConfiguredTitle
+            alert.informativeText = L10n.notConfiguredMessage
             alert.alertStyle = .warning
-            alert.addButton(withTitle: "Open Settings")
-            alert.addButton(withTitle: "Cancel")
+            alert.addButton(withTitle: L10n.openSettings)
+            alert.addButton(withTitle: L10n.cancel)
             if alert.runModal() == .alertFirstButtonReturn {
                 self.openSettings()
             }
