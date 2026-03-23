@@ -51,7 +51,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.contentView = NSHostingView(rootView: dialog)
         window.center()
         window.isReleasedWhenClosed = false
-        window.level = .floating
+        window.level = .normal
         window.delegate = self
         window.makeKeyAndOrderFront(nil)
         startupWindow = window
