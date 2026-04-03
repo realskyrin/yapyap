@@ -4,7 +4,7 @@ import AVFoundation
 // MARK: - Settings Tab
 
 enum SettingsTab: String, CaseIterable {
-    case general, asr, textProcessing, ai, usage
+    case general, asr, ai, textProcessing, usage
 
     var icon: String {
         switch self {
@@ -130,6 +130,7 @@ struct SectionCard<Content: View>: View {
             VStack(spacing: 0) {
                 content()
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 10)
                     .fill(Color(nsColor: .controlBackgroundColor))
@@ -207,7 +208,6 @@ struct GeneralTabView: View {
                         }
                     }
                     .labelsHidden()
-                    .frame(maxWidth: .infinity)
                 }
                 CardDivider()
                 CardRow(label: L10n.showMenuBarIcon) {
@@ -354,7 +354,6 @@ struct ASRTabView: View {
                         Text(L10n.resourceConcurrent10).tag("volc.bigasr.sauc.concurrent")
                     }
                     .labelsHidden()
-                    .frame(maxWidth: .infinity)
                 }
                 CardDivider()
 
@@ -489,7 +488,6 @@ struct AITabView: View {
                             }
                         }
                         .labelsHidden()
-                        .frame(maxWidth: .infinity)
                     }
 
                     // Base URL (only for Custom)

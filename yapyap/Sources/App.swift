@@ -25,6 +25,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var cancellables = Set<AnyCancellable>()
     private var showMenuBarCancellable: AnyCancellable?
     private var languageCancellable: AnyCancellable?
+    private var latestRawText = ""
     private var latestProcessedText = ""
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -130,6 +131,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
 
         TextInjector.reset()
+        latestRawText = ""
         latestProcessedText = ""
 
         DispatchQueue.main.async {
@@ -140,6 +142,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
 
         asrClient.onTextUpdate = { [weak self] text in
+            self?.latestRawText = text
             let processed = TextProcessor.process(text)
             self?.latestProcessedText = processed
             self?.overlayWindow.updateText(processed)
@@ -176,22 +179,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 guard let self else { return }
                 self.asrClient.disconnect()
 
-                let textToInject = self.latestProcessedText
+                let settings = SettingsStore.shared
+                let useAI = settings.aiEnabled && !settings.aiApiKey.isEmpty
+
+                let textToInject = useAI ? self.latestRawText : self.latestProcessedText
                 guard !textToInject.isEmpty else {
                     self.overlayWindow.hide()
                     return
                 }
 
-                // AI post-processing
-                let settings = SettingsStore.shared
-                if settings.aiEnabled && !settings.aiApiKey.isEmpty {
+                if useAI {
+                    // AI first, then text processing (punctuation/spacing)
                     self.overlayWindow.showProcessing()
                     AIProcessor.process(text: textToInject) { [weak self] corrected in
                         guard let self else { return }
-                        // Show corrected text in bubble before injecting
-                        self.overlayWindow.updateText(corrected)
+                        let finalText = TextProcessor.process(corrected)
+                        self.overlayWindow.updateText(finalText)
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                            TextInjector.update(fullText: corrected)
+                            TextInjector.update(fullText: finalText)
                             self.overlayWindow.hide()
                         }
                     }
