@@ -466,6 +466,8 @@ struct AITabView: View {
     @State private var fetchError: String? = nil
     @State private var showModelPopover = false
     @State private var modelSearchText = ""
+    @State private var newTerm = ""
+    @State private var showTermsTooltip = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -562,6 +564,58 @@ struct AITabView: View {
                             .foregroundStyle(.tertiary)
                     }
                     .padding(12)
+                }
+
+                // Terms section
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 4) {
+                        Text(L10n.aiTermsHeader)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.secondary)
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                            .onHover { showTermsTooltip = $0 }
+                            .popover(isPresented: $showTermsTooltip, arrowEdge: .trailing) {
+                                Text(L10n.aiTermsTooltip)
+                                    .font(.system(size: 12))
+                                    .padding(8)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .frame(maxWidth: 240)
+                            }
+                    }
+                    .padding(.leading, 2)
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 8) {
+                            TextField(L10n.aiTermsPlaceholder, text: $newTerm)
+                                .textFieldStyle(.roundedBorder)
+                                .onSubmit { addTerm() }
+                            Button(L10n.aiTermsAdd) { addTerm() }
+                                .disabled(newTerm.trimmingCharacters(in: .whitespaces).isEmpty)
+                        }
+
+                        if !store.aiTerms.isEmpty {
+                            FlowLayout(spacing: 8) {
+                                ForEach(store.aiTerms, id: \.self) { term in
+                                    TermTag(text: term) {
+                                        store.aiTerms.removeAll { $0 == term }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color(nsColor: .controlBackgroundColor))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
             }
         }
@@ -662,6 +716,15 @@ struct AITabView: View {
         .frame(width: 260)
     }
 
+    // MARK: - Terms
+
+    private func addTerm() {
+        let term = newTerm.trimmingCharacters(in: .whitespaces)
+        guard !term.isEmpty, !store.aiTerms.contains(term) else { return }
+        store.aiTerms.append(term)
+        newTerm = ""
+    }
+
     // MARK: - Fetch Models
 
     private func fetchModels() {
@@ -700,6 +763,73 @@ struct AITabView: View {
                 fetchError = nil
             }
         }.resume()
+    }
+}
+
+// MARK: - Flow Layout
+
+struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        arrange(in: proposal.width ?? .infinity, subviews: subviews).size
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let result = arrange(in: bounds.width, subviews: subviews)
+        for (i, pos) in result.positions.enumerated() {
+            subviews[i].place(at: CGPoint(x: bounds.minX + pos.x, y: bounds.minY + pos.y), proposal: .unspecified)
+        }
+    }
+
+    private func arrange(in width: CGFloat, subviews: Subviews) -> (size: CGSize, positions: [CGPoint]) {
+        var positions: [CGPoint] = []
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x + size.width > width, x > 0 {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            positions.append(CGPoint(x: x, y: y))
+            rowHeight = max(rowHeight, size.height)
+            x += size.width + spacing
+        }
+        return (CGSize(width: width, height: y + rowHeight), positions)
+    }
+}
+
+// MARK: - Term Tag
+
+struct TermTag: View {
+    let text: String
+    let onRemove: () -> Void
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Text(text)
+                .font(.system(size: 12))
+            Button(action: onRemove) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(.secondary)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color(nsColor: .controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 6)
+                .stroke(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5)
+        )
     }
 }
 

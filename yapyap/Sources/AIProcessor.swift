@@ -29,9 +29,14 @@ enum AIProcessor {
             return
         }
 
-        let systemPrompt = settings.aiPrompt.isEmpty
+        var systemPrompt = settings.aiPrompt.isEmpty
             ? "You are a text correction assistant. Fix any speech recognition errors and grammar issues in the following text. Return only the corrected text, nothing else."
             : settings.aiPrompt
+
+        if !settings.aiTerms.isEmpty {
+            let termsList = settings.aiTerms.map { "- \($0)" }.joined(separator: "\n")
+            systemPrompt += "\n\nIMPORTANT: The following terms/proper nouns must be used exactly as written when they appear in the text. Speech recognition may have misrecognized them:\n\(termsList)"
+        }
 
         let body: [String: Any] = [
             "model": settings.aiModel,

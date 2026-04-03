@@ -68,6 +68,14 @@ enum L10n {
             : "Leave empty for default (fix speech recognition errors and grammar)"
     }
     static var processing: String { lang == .zh ? "处理中" : "Processing" }
+    static var aiTermsHeader: String { lang == .zh ? "术语" : "Terms" }
+    static var aiTermsPlaceholder: String { lang == .zh ? "添加术语..." : "Add term..." }
+    static var aiTermsAdd: String { lang == .zh ? "添加" : "Add" }
+    static var aiTermsTooltip: String {
+        lang == .zh
+            ? "添加常用术语，AI 会在后处理时优先使用这些词（例如：Claude Code, /clear）"
+            : "Add terms that AI should preserve during post-processing (e.g. Claude Code, /clear)"
+    }
 
     // Sidebar tabs
     static var tabGeneral: String { lang == .zh ? "通用" : "General" }
@@ -206,6 +214,13 @@ class SettingsStore: ObservableObject {
     @Published var aiPrompt: String {
         didSet { UserDefaults.standard.set(aiPrompt, forKey: "aiPrompt") }
     }
+    @Published var aiTerms: [String] {
+        didSet {
+            if let data = try? JSONEncoder().encode(aiTerms) {
+                UserDefaults.standard.set(data, forKey: "aiTerms")
+            }
+        }
+    }
     private init() {
         self.appKey = UserDefaults.standard.string(forKey: "appKey") ?? ""
         self.accessKey = UserDefaults.standard.string(forKey: "accessKey") ?? ""
@@ -231,5 +246,11 @@ class SettingsStore: ObservableObject {
         self.aiApiKey = UserDefaults.standard.string(forKey: "aiApiKey") ?? ""
         self.aiModel = UserDefaults.standard.string(forKey: "aiModel") ?? "gpt-4o-mini"
         self.aiPrompt = UserDefaults.standard.string(forKey: "aiPrompt") ?? ""
+        if let data = UserDefaults.standard.data(forKey: "aiTerms"),
+           let terms = try? JSONDecoder().decode([String].self, from: data) {
+            self.aiTerms = terms
+        } else {
+            self.aiTerms = []
+        }
     }
 }
