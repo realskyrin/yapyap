@@ -25,6 +25,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var cancellables = Set<AnyCancellable>()
     private var showMenuBarCancellable: AnyCancellable?
     private var languageCancellable: AnyCancellable?
+    private var latestProcessedText = ""
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         showStartupDialog()
@@ -43,12 +44,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             self.setupBindings()
         }
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 420, height: 700),
+            contentRect: NSRect(x: 0, y: 0, width: 680, height: 520),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
         )
-        window.title = "yapyap Settings"
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
         window.contentView = NSHostingView(rootView: dialog)
         window.center()
         window.isReleasedWhenClosed = false
@@ -128,6 +130,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
 
         TextInjector.reset()
+        latestProcessedText = ""
 
         DispatchQueue.main.async {
             if let button = self.statusItem.button {
@@ -136,9 +139,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             self.overlayWindow.show()
         }
 
-        asrClient.onTextUpdate = { text in
+        asrClient.onTextUpdate = { [weak self] text in
             let processed = TextProcessor.process(text)
-            TextInjector.update(fullText: processed)
+            self?.latestProcessedText = processed
+            self?.overlayWindow.updateText(processed)
         }
 
         asrClient.connect()
@@ -159,7 +163,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             if let button = self.statusItem.button {
                 button.image = NSImage(systemSymbolName: "mic", accessibilityDescription: "yapyap")
             }
-            self.overlayWindow.hide()
         }
 
         // Delay 0.5s before stopping audio to capture trailing speech
@@ -170,7 +173,32 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
             // Give the server time to process the final audio before disconnecting
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                self?.asrClient.disconnect()
+                guard let self else { return }
+                self.asrClient.disconnect()
+
+                let textToInject = self.latestProcessedText
+                guard !textToInject.isEmpty else {
+                    self.overlayWindow.hide()
+                    return
+                }
+
+                // AI post-processing
+                let settings = SettingsStore.shared
+                if settings.aiEnabled && !settings.aiApiKey.isEmpty {
+                    self.overlayWindow.showProcessing()
+                    AIProcessor.process(text: textToInject) { [weak self] corrected in
+                        guard let self else { return }
+                        // Show corrected text in bubble before injecting
+                        self.overlayWindow.updateText(corrected)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                            TextInjector.update(fullText: corrected)
+                            self.overlayWindow.hide()
+                        }
+                    }
+                } else {
+                    TextInjector.update(fullText: textToInject)
+                    self.overlayWindow.hide()
+                }
             }
         }
     }
@@ -194,12 +222,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             window.makeKeyAndOrderFront(nil)
         } else {
             let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 420, height: 320),
+                contentRect: NSRect(x: 0, y: 0, width: 680, height: 520),
                 styleMask: [.titled, .closable],
                 backing: .buffered,
                 defer: false
             )
-            window.title = "yapyap Settings"
+            window.titlebarAppearsTransparent = true
+            window.titleVisibility = .hidden
             window.contentView = NSHostingView(rootView: SettingsView())
             window.center()
             window.isReleasedWhenClosed = false

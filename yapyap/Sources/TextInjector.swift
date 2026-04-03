@@ -8,6 +8,11 @@ enum TextInjector {
     private static var injectedText = ""
     private static let queue = DispatchQueue(label: "cn.skyrin.yapyap.textinjector")
 
+    /// The currently injected text (read-only, thread-safe).
+    static var currentText: String {
+        queue.sync { injectedText }
+    }
+
     /// Check and request Accessibility permission.
     static func checkAccessibility() -> Bool {
         let trusted = AXIsProcessTrustedWithOptions(

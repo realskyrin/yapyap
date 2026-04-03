@@ -56,6 +56,36 @@ enum L10n {
     static var openSettings: String { lang == .zh ? "打开设置" : "Open Settings" }
     static var cancel: String { lang == .zh ? "取消" : "Cancel" }
 
+    // AI Post-Processing
+    static var aiHeader: String { lang == .zh ? "AI 后处理" : "AI Post-Processing" }
+    static var aiEnabled: String { lang == .zh ? "启用 AI 文本纠正" : "Enable AI text correction" }
+    static var aiBaseURL: String { lang == .zh ? "API 地址" : "API Base URL" }
+    static var aiModel: String { lang == .zh ? "模型" : "Model" }
+    static var aiPrompt: String { lang == .zh ? "系统提示词" : "System Prompt" }
+    static var aiPromptPlaceholder: String {
+        lang == .zh
+            ? "留空使用默认提示词（修正语音识别错误和语法问题）"
+            : "Leave empty for default (fix speech recognition errors and grammar)"
+    }
+    static var processing: String { lang == .zh ? "处理中" : "Processing" }
+
+    // Sidebar tabs
+    static var tabGeneral: String { lang == .zh ? "通用" : "General" }
+    static var tabASR: String { lang == .zh ? "语音识别" : "Speech" }
+    static var tabTextProcessing: String { lang == .zh ? "文本处理" : "Text" }
+    static var tabAI: String { lang == .zh ? "AI 后处理" : "AI" }
+    static var tabUsage: String { lang == .zh ? "使用帮助" : "Help" }
+
+    // Section headers
+    static var appSettingsHeader: String { lang == .zh ? "应用" : "App" }
+
+    // AI tab extras
+    static var aiProviderLabel: String { lang == .zh ? "提供商" : "Provider" }
+    static var aiApiKeyLabel: String { lang == .zh ? "API 密钥" : "API Key" }
+    static var aiModelPlaceholder: String { lang == .zh ? "输入模型名称" : "Enter model name" }
+    static var aiSearchModels: String { lang == .zh ? "搜索..." : "Search..." }
+    static var aiFetchFailed: String { lang == .zh ? "拉取失败" : "Fetch failed" }
+
     // Startup dialog
     static var showMenuBarIcon: String { lang == .zh ? "显示菜单栏图标" : "Show Menu Bar Icon" }
     static var permissionsHeader: String { lang == .zh ? "所需权限" : "Required Permissions" }
@@ -74,6 +104,46 @@ enum L10n {
     static var launchApp: String { lang == .zh ? "启动应用" : "Launch App" }
     static var permissionGranted: String { lang == .zh ? "已授权" : "Granted" }
     static var permissionNotGranted: String { lang == .zh ? "未授权 — 点击前往设置" : "Not granted — click to open Settings" }
+}
+
+enum AIProvider: String, CaseIterable {
+    case openai = "openai"
+    case deepseek = "deepseek"
+    case siliconflow = "siliconflow"
+    case groq = "groq"
+    case moonshot = "moonshot"
+    case custom = "custom"
+
+    var displayName: String {
+        switch self {
+        case .openai: return "OpenAI"
+        case .deepseek: return "DeepSeek"
+        case .siliconflow: return "SiliconFlow"
+        case .groq: return "Groq"
+        case .moonshot: return "Moonshot"
+        case .custom: return "Custom"
+        }
+    }
+
+    var baseURL: String {
+        switch self {
+        case .openai: return "https://api.openai.com/v1"
+        case .deepseek: return "https://api.deepseek.com"
+        case .siliconflow: return "https://api.siliconflow.cn/v1"
+        case .groq: return "https://api.groq.com/openai/v1"
+        case .moonshot: return "https://api.moonshot.cn/v1"
+        case .custom: return ""
+        }
+    }
+
+    static func detect(from url: String) -> AIProvider {
+        for provider in AIProvider.allCases where provider != .custom {
+            if url == provider.baseURL {
+                return provider
+            }
+        }
+        return .custom
+    }
 }
 
 enum PunctuationMode: String, CaseIterable {
@@ -113,6 +183,29 @@ class SettingsStore: ObservableObject {
     @Published var showMenuBar: Bool {
         didSet { UserDefaults.standard.set(showMenuBar, forKey: "showMenuBar") }
     }
+    @Published var aiEnabled: Bool {
+        didSet { UserDefaults.standard.set(aiEnabled, forKey: "aiEnabled") }
+    }
+    @Published var aiProvider: AIProvider {
+        didSet {
+            UserDefaults.standard.set(aiProvider.rawValue, forKey: "aiProvider")
+            if aiProvider != .custom {
+                aiBaseURL = aiProvider.baseURL
+            }
+        }
+    }
+    @Published var aiBaseURL: String {
+        didSet { UserDefaults.standard.set(aiBaseURL, forKey: "aiBaseURL") }
+    }
+    @Published var aiApiKey: String {
+        didSet { UserDefaults.standard.set(aiApiKey, forKey: "aiApiKey") }
+    }
+    @Published var aiModel: String {
+        didSet { UserDefaults.standard.set(aiModel, forKey: "aiModel") }
+    }
+    @Published var aiPrompt: String {
+        didSet { UserDefaults.standard.set(aiPrompt, forKey: "aiPrompt") }
+    }
     private init() {
         self.appKey = UserDefaults.standard.string(forKey: "appKey") ?? ""
         self.accessKey = UserDefaults.standard.string(forKey: "accessKey") ?? ""
@@ -126,5 +219,17 @@ class SettingsStore: ObservableObject {
         } else {
             self.showMenuBar = UserDefaults.standard.bool(forKey: "showMenuBar")
         }
+        self.aiEnabled = UserDefaults.standard.bool(forKey: "aiEnabled")
+        let storedBaseURL = UserDefaults.standard.string(forKey: "aiBaseURL") ?? "https://api.openai.com/v1"
+        self.aiBaseURL = storedBaseURL
+        if let raw = UserDefaults.standard.string(forKey: "aiProvider"),
+           let provider = AIProvider(rawValue: raw) {
+            self.aiProvider = provider
+        } else {
+            self.aiProvider = AIProvider.detect(from: storedBaseURL)
+        }
+        self.aiApiKey = UserDefaults.standard.string(forKey: "aiApiKey") ?? ""
+        self.aiModel = UserDefaults.standard.string(forKey: "aiModel") ?? "gpt-4o-mini"
+        self.aiPrompt = UserDefaults.standard.string(forKey: "aiPrompt") ?? ""
     }
 }
