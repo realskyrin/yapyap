@@ -1,0 +1,161 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'release-v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build & Package
+    runs-on: macos-15
+    outputs:
+      version: ${{ steps.version.outputs.VERSION }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#release-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode_16.2.app || \
+          sudo xcode-select -s /Applications/Xcode.app
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build
+        run: |
+          xcodebuild -project yapyap.xcodeproj \
+            -scheme yapyap \
+            -configuration Release \
+            -arch arm64 \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      # --- Code Signing (uncomment when ready) ---
+      # To enable, add these GitHub Secrets:
+      #   DEVELOPER_ID_APPLICATION_CERT_BASE64 - base64-encoded .p12 certificate
+      #   DEVELOPER_ID_APPLICATION_CERT_PASSWORD - certificate password
+      #   KEYCHAIN_PASSWORD - temporary keychain password
+      #
+      # - name: Install signing certificate
+      #   env:
+      #     CERTIFICATE_BASE64: ${{ secrets.DEVELOPER_ID_APPLICATION_CERT_BASE64 }}
+      #     CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_APPLICATION_CERT_PASSWORD }}
+      #     KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      #   run: |
+      #     CERT_PATH=$RUNNER_TEMP/certificate.p12
+      #     KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+      #     echo -n "$CERTIFICATE_BASE64" | base64 --decode -o $CERT_PATH
+      #     security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+      #     security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+      #     security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+      #     security import $CERT_PATH -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+      #     security list-keychain -d user -s $KEYCHAIN_PATH
+      #
+      # - name: Codesign app bundle
+      #   run: |
+      #     APP_PATH="build/DerivedData/Build/Products/Release/yapyap.app"
+      #     codesign --force --deep --options runtime \
+      #       --entitlements yapyap/Resources/yapyap.entitlements \
+      #       --sign "Developer ID Application" \
+      #       "$APP_PATH"
+
+      - name: Package app
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          APP_PATH="build/DerivedData/Build/Products/Release/yapyap.app"
+          ditto -c -k --keepParent "$APP_PATH" "yapyap-${VERSION}-arm64.zip"
+
+      # --- Notarization (uncomment when ready) ---
+      # To enable, add these GitHub Secrets:
+      #   APPLE_ID - your Apple ID email
+      #   APPLE_ID_PASSWORD - app-specific password
+      #   APPLE_TEAM_ID - your Apple Developer Team ID
+      #
+      # - name: Notarize app
+      #   env:
+      #     APPLE_ID: ${{ secrets.APPLE_ID }}
+      #     APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+      #     APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      #   run: |
+      #     VERSION="${{ steps.version.outputs.VERSION }}"
+      #     xcrun notarytool submit "yapyap-${VERSION}-arm64.zip" \
+      #       --apple-id "$APPLE_ID" \
+      #       --password "$APPLE_ID_PASSWORD" \
+      #       --team-id "$APPLE_TEAM_ID" \
+      #       --wait
+      #     # Staple after notarization
+      #     APP_PATH="build/DerivedData/Build/Products/Release/yapyap.app"
+      #     xcrun stapler staple "$APP_PATH"
+      #     # Re-package with stapled ticket
+      #     ditto -c -k --keepParent "$APP_PATH" "yapyap-${VERSION}-arm64.zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: yapyap-${{ steps.version.outputs.VERSION }}
+          path: yapyap-*.zip
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: yapyap-${{ needs.build.outputs.version }}
+
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          VERSION="${{ needs.build.outputs.version }}"
+          # Extract the section between this version header and the next version header
+          BODY=$(awk -v ver="$VERSION" '
+            /^## \[/ {
+              if (found) exit
+              if (index($0, ver)) { found=1; next }
+            }
+            found { print }
+          ' CHANGELOG.md)
+
+          # Fallback if no changelog entry found
+          if [ -z "$BODY" ]; then
+            BODY="Release v${VERSION}"
+          fi
+
+          # Write to output using delimiter
+          {
+            echo "BODY<<CHANGELOG_EOF"
+            echo "$BODY"
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softproof/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: v${{ needs.build.outputs.version }}
+          body: ${{ steps.changelog.outputs.BODY }}
+          files: yapyap-*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
