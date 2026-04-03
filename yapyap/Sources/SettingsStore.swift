@@ -28,8 +28,8 @@ enum L10n {
     static var usageHeader: String { lang == .zh ? "使用方法" : "Usage" }
     static var usageText: String {
         lang == .zh
-            ? "按住 **fn** 键开始录音，识别结果实时插入光标处。\n松开 **fn** 键停止录音。"
-            : "Hold **fn** to record, text is inserted at cursor in real time.\nRelease **fn** to stop."
+            ? "长按模式：按住 fn 键开始录音，松开后自动完成识别并插入文本。\n\n单击模式：单击 fn 键开始录音，再次单击 fn 键结束录音并插入文本。\n\n识别结果会实时显示在悬浮预览窗中，最终文本插入到当前光标位置。"
+            : "Hold mode: Press and hold fn to record, release to finish and insert text.\n\nTap mode: Tap fn once to start recording, tap again to stop and insert text.\n\nRecognized text is previewed in a floating overlay and inserted at the current cursor position."
     }
     static var usageTip: String {
         lang == .zh
@@ -57,7 +57,7 @@ enum L10n {
     static var cancel: String { lang == .zh ? "取消" : "Cancel" }
 
     // AI Post-Processing
-    static var aiHeader: String { lang == .zh ? "AI 后处理" : "AI Post-Processing" }
+    static var aiHeader: String { lang == .zh ? "后处理" : "Post-Processing" }
     static var aiEnabled: String { lang == .zh ? "启用 AI 文本纠正" : "Enable AI text correction" }
     static var aiBaseURL: String { lang == .zh ? "API 地址" : "API Base URL" }
     static var aiModel: String { lang == .zh ? "模型" : "Model" }
@@ -79,9 +79,9 @@ enum L10n {
 
     // Sidebar tabs
     static var tabGeneral: String { lang == .zh ? "通用" : "General" }
-    static var tabASR: String { lang == .zh ? "语音识别" : "Speech" }
+    static var tabASR: String { lang == .zh ? "模型设置" : "Model" }
     static var tabTextProcessing: String { lang == .zh ? "文本处理" : "Text" }
-    static var tabAI: String { lang == .zh ? "AI 后处理" : "AI" }
+    static var tabAI: String { lang == .zh ? "后处理" : "AI" }
     static var tabUsage: String { lang == .zh ? "使用帮助" : "Help" }
 
     // Section headers

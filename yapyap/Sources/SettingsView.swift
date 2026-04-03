@@ -10,7 +10,7 @@ enum SettingsTab: String, CaseIterable {
         switch self {
         case .general: return "house"
         case .asr: return "waveform"
-        case .textProcessing: return "textformat"
+        case .textProcessing: return "character.textbox.badge.sparkles"
         case .ai: return "sparkles"
         case .usage: return "questionmark.circle"
         }
@@ -44,6 +44,16 @@ struct SettingsView: View {
                     sidebarButton(tab)
                 }
                 Spacer()
+                if isStartup {
+                    Button(action: { onLaunch?() }) {
+                        Text(L10n.launchApp)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .controlSize(.large)
+                    .keyboardShortcut(.defaultAction)
+                    .padding(.horizontal, 8)
+                    .padding(.bottom, 4)
+                }
             }
             .padding(.vertical, 12)
             .padding(.horizontal, 8)
@@ -56,7 +66,7 @@ struct SettingsView: View {
                 Group {
                     switch selectedTab {
                     case .general:
-                        GeneralTabView(isStartup: isStartup, onLaunch: onLaunch)
+                        GeneralTabView()
                     case .asr:
                         ASRTabView()
                     case .textProcessing:
@@ -173,14 +183,7 @@ struct GeneralTabView: View {
     @State private var micAuthorized = false
     @State private var accessibilityAuthorized = false
 
-    var isStartup: Bool = false
-    var onLaunch: (() -> Void)?
-
     private let permissionTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-
-    private var allPermissionsGranted: Bool {
-        micAuthorized && accessibilityAuthorized
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -217,19 +220,6 @@ struct GeneralTabView: View {
                 }
             }
 
-            if isStartup {
-                HStack {
-                    Spacer()
-                    Button(action: { onLaunch?() }) {
-                        Text(L10n.launchApp)
-                            .frame(minWidth: 120)
-                    }
-                    .controlSize(.large)
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(!allPermissionsGranted)
-                    Spacer()
-                }
-            }
         }
         .onAppear { checkPermissions() }
         .onReceive(permissionTimer) { _ in checkPermissions() }
