@@ -28,6 +28,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var latestRawText = ""
     private var latestProcessedText = ""
 
+    // Recording state machine: supports hold-to-record and click-to-toggle
+    private enum RecordingMode {
+        case idle
+        case recording       // fn held down, recording in progress
+        case clickRecording  // single-tap toggled, recording continues after fn release
+        case processing      // post-recording text processing
+    }
+    private var recordingMode: RecordingMode = .idle
+    private var fnPressTime: Date = .distantPast
+    private let holdThreshold: TimeInterval = 0.3
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         showStartupDialog()
     }
@@ -108,15 +119,46 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func setupBindings() {
-        keyMonitor.onRecordingStateChanged = { [weak self] isRecording in
-            guard let self else { return }
-            if isRecording {
-                self.startRecording()
-            } else {
-                self.stopRecording()
-            }
+        keyMonitor.onFnDown = { [weak self] in
+            self?.handleFnDown()
+        }
+        keyMonitor.onFnUp = { [weak self] in
+            self?.handleFnUp()
         }
         keyMonitor.start()
+    }
+
+    // MARK: - Fn key state machine
+
+    private func handleFnDown() {
+        switch recordingMode {
+        case .idle:
+            fnPressTime = Date()
+            recordingMode = .recording
+            startRecording()
+        case .clickRecording, .recording, .processing:
+            break
+        }
+    }
+
+    private func handleFnUp() {
+        switch recordingMode {
+        case .recording:
+            if Date().timeIntervalSince(fnPressTime) >= holdThreshold {
+                // Long press release → stop immediately
+                recordingMode = .processing
+                stopRecording()
+            } else {
+                // Quick tap → enter click-toggle mode, keep recording
+                recordingMode = .clickRecording
+            }
+        case .clickRecording:
+            // Second tap → stop recording
+            recordingMode = .processing
+            stopRecording()
+        case .idle, .processing:
+            break
+        }
     }
 
     private func startRecording() {
@@ -185,6 +227,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                 let textToInject = useAI ? self.latestRawText : self.latestProcessedText
                 guard !textToInject.isEmpty else {
                     self.overlayWindow.hide()
+                    self.recordingMode = .idle
                     return
                 }
 
@@ -198,11 +241,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
                             TextInjector.update(fullText: finalText)
                             self.overlayWindow.hide()
+                            self.recordingMode = .idle
                         }
                     }
                 } else {
                     TextInjector.update(fullText: textToInject)
                     self.overlayWindow.hide()
+                    self.recordingMode = .idle
                 }
             }
         }

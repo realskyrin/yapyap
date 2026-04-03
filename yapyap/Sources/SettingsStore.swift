@@ -47,7 +47,7 @@ enum L10n {
 
     // Menu bar
     static var menuSettings: String { lang == .zh ? "设置…" : "Settings…" }
-    static var menuHoldFn: String { lang == .zh ? "按住 fn 开始录音" : "Hold fn to record" }
+    static var menuHoldFn: String { lang == .zh ? "长按/单击 fn 开始录音" : "Hold or tap fn to record" }
     static var menuQuit: String { lang == .zh ? "退出 yapyap" : "Quit yapyap" }
 
     // Alert

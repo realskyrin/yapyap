@@ -15,7 +15,8 @@ enum OverlayState {
 class OverlayWindow {
     private var window: NSWindow?
     private var capsuleView: CapsuleView?
-    private var bubbleField: NSTextField?
+    private var bubbleContainerView: NSView?
+    private var bubbleTextField: NSTextField?
     private var containerView: NSView?
     private var currentText: String = ""
     private var state: OverlayState = .recording
@@ -23,9 +24,11 @@ class OverlayWindow {
     // Layout constants
     private let capsuleHeight: CGFloat = 33
     private let capsuleWidthCompact: CGFloat = 70
-    private let bubbleHeight: CGFloat = 28
+    private let bubbleMinHeight: CGFloat = 32
     private let bubbleGap: CGFloat = 6
-    private let bubbleMaxWidth: CGFloat = 280
+    private let bubbleMaxWidth: CGFloat = 320
+    private let bubblePaddingH: CGFloat = 12
+    private let bubblePaddingV: CGFloat = 8
     private let bottomOffset: CGFloat = 120 // above dock
 
     func show() {
@@ -37,7 +40,7 @@ class OverlayWindow {
 
         // Window sized to hold capsule + bubble
         let winWidth = bubbleMaxWidth + 20
-        let winHeight = capsuleHeight + bubbleHeight + bubbleGap + 20
+        let winHeight = capsuleHeight + bubbleMinHeight + bubbleGap + 20
         let x = (screen.frame.width - winWidth) / 2
         let y = bottomOffset
 
@@ -59,29 +62,40 @@ class OverlayWindow {
         win.contentView = container
         self.containerView = container
 
-        // Text bubble (hidden initially, appears when text arrives)
+        // Text bubble container (hidden initially, appears when text arrives)
         let bubbleX = (winWidth - bubbleMaxWidth) / 2
-        let bubble = NSTextField(frame: NSRect(x: bubbleX, y: 0, width: bubbleMaxWidth, height: bubbleHeight))
-        bubble.isEditable = false
-        bubble.isSelectable = false
-        bubble.isBordered = false
-        bubble.drawsBackground = true
-        bubble.backgroundColor = NSColor(calibratedRed: 20/255, green: 20/255, blue: 20/255, alpha: 0.88)
-        bubble.textColor = NSColor(calibratedWhite: 1.0, alpha: 0.92)
-        bubble.font = NSFont.systemFont(ofSize: 13, weight: .medium)
-        bubble.alignment = .right
-        bubble.lineBreakMode = .byTruncatingHead
-        bubble.maximumNumberOfLines = 1
-        bubble.wantsLayer = true
-        bubble.layer?.cornerRadius = 10
-        bubble.layer?.masksToBounds = true
-        bubble.alphaValue = 0
-        container.addSubview(bubble)
-        self.bubbleField = bubble
+        let bubbleContainer = NSView(frame: NSRect(x: bubbleX, y: 0, width: bubbleMaxWidth, height: bubbleMinHeight))
+        bubbleContainer.wantsLayer = true
+        bubbleContainer.layer?.backgroundColor = NSColor(calibratedRed: 20/255, green: 20/255, blue: 20/255, alpha: 0.88).cgColor
+        bubbleContainer.layer?.cornerRadius = 10
+        bubbleContainer.layer?.masksToBounds = true
+        bubbleContainer.alphaValue = 0
+        container.addSubview(bubbleContainer)
+        self.bubbleContainerView = bubbleContainer
+
+        // Text field inside bubble with padding
+        let textField = NSTextField(frame: NSRect(
+            x: bubblePaddingH, y: bubblePaddingV,
+            width: bubbleMaxWidth - bubblePaddingH * 2,
+            height: bubbleMinHeight - bubblePaddingV * 2
+        ))
+        textField.isEditable = false
+        textField.isSelectable = false
+        textField.isBordered = false
+        textField.drawsBackground = false
+        textField.textColor = NSColor(calibratedWhite: 1.0, alpha: 0.92)
+        textField.font = NSFont.systemFont(ofSize: 13, weight: .medium)
+        textField.alignment = .right
+        textField.lineBreakMode = .byWordWrapping
+        textField.maximumNumberOfLines = 5
+        textField.cell?.wraps = true
+        textField.cell?.isScrollable = false
+        bubbleContainer.addSubview(textField)
+        self.bubbleTextField = textField
 
         // Capsule view (centered below bubble)
         let capsuleX = (winWidth - capsuleWidthCompact) / 2
-        let capsuleY = bubbleHeight + bubbleGap
+        let capsuleY = bubbleMinHeight + bubbleGap
         let capsule = CapsuleView(frame: NSRect(x: capsuleX, y: capsuleY, width: capsuleWidthCompact, height: capsuleHeight))
         container.addSubview(capsule)
         self.capsuleView = capsule
@@ -112,7 +126,8 @@ class OverlayWindow {
             win.orderOut(nil)
             self?.window = nil
             self?.capsuleView = nil
-            self?.bubbleField = nil
+            self?.bubbleContainerView = nil
+            self?.bubbleTextField = nil
             self?.containerView = nil
             self?.currentText = ""
         })
@@ -126,13 +141,50 @@ class OverlayWindow {
         guard !text.isEmpty else { return }
         currentText = text
         DispatchQueue.main.async { [weak self] in
-            guard let self, let bubble = self.bubbleField else { return }
-            bubble.stringValue = text
-            if bubble.alphaValue < 1 {
+            guard let self,
+                  let textField = self.bubbleTextField,
+                  let bubbleContainer = self.bubbleContainerView,
+                  let parentView = self.containerView,
+                  let capsule = self.capsuleView,
+                  let win = self.window else { return }
+
+            textField.stringValue = text
+
+            // Calculate required text height for multi-line
+            let maxTextWidth = self.bubbleMaxWidth - self.bubblePaddingH * 2
+            let textHeight = textField.cell?.cellSize(forBounds: NSRect(
+                x: 0, y: 0, width: maxTextWidth, height: .greatestFiniteMagnitude
+            )).height ?? 16
+            let bubbleHeight = max(self.bubbleMinHeight, textHeight + self.bubblePaddingV * 2)
+
+            // Resize text field
+            textField.frame = NSRect(
+                x: self.bubblePaddingH, y: self.bubblePaddingV,
+                width: maxTextWidth,
+                height: bubbleHeight - self.bubblePaddingV * 2
+            )
+
+            // Resize bubble container
+            let bubbleX = (parentView.bounds.width - self.bubbleMaxWidth) / 2
+            bubbleContainer.frame = NSRect(x: bubbleX, y: 0, width: self.bubbleMaxWidth, height: bubbleHeight)
+
+            // Reposition capsule below bubble
+            let capsuleX = (parentView.bounds.width - self.capsuleWidthCompact) / 2
+            capsule.frame = NSRect(x: capsuleX, y: bubbleHeight + self.bubbleGap, width: self.capsuleWidthCompact, height: self.capsuleHeight)
+
+            // Resize window (grow upward, keep bottom edge fixed)
+            let totalHeight = bubbleHeight + self.bubbleGap + self.capsuleHeight + 20
+            var winFrame = win.frame
+            winFrame.size.height = totalHeight
+            winFrame.origin.y = self.bottomOffset
+            win.setFrame(winFrame, display: true)
+
+            // Show bubble if hidden
+            if bubbleContainer.alphaValue < 1 {
                 NSAnimationContext.runAnimationGroup { ctx in
                     ctx.duration = 0.25
                     ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                    bubble.animator().alphaValue = 1
+                    bubbleContainer.animator().alphaValue = 1
                 }
             }
         }
@@ -143,10 +195,10 @@ class OverlayWindow {
         capsuleView?.showProcessing()
         // Fade out the text bubble during processing
         DispatchQueue.main.async { [weak self] in
-            guard let bubble = self?.bubbleField else { return }
+            guard let container = self?.bubbleContainerView else { return }
             NSAnimationContext.runAnimationGroup { ctx in
                 ctx.duration = 0.2
-                bubble.animator().alphaValue = 0
+                container.animator().alphaValue = 0
             }
         }
     }
@@ -161,21 +213,14 @@ private class FlippedView: NSView {
 // MARK: - CapsuleView
 
 private class CapsuleView: NSView {
-    // Bar configuration (from handless)
+    // Bar configuration
     private let barCount = 7
-    private let barWidth: CGFloat = 2.5
+    private let barWidth: CGFloat = 3.0
     private let barGap: CGFloat = 2
-    private let barRadius: CGFloat = 1.25
+    private let barRadius: CGFloat = 1.5
     private let barMinHeight: CGFloat = 3
-    private let barMaxHeight: CGFloat = 20
-    private let barEnvelope: [CGFloat] = [0.45, 0.7, 0.85, 1.0, 0.85, 0.7, 0.45]
-
-    // Per-bar wobble parameters (from handless)
-    private let barWobble: [(phase: Double, freq: Double, amp: Double)] = [
-        (0, 0.7, 1.2), (1.3, 1.0, 0.8), (0.6, 0.85, 1.0),
-        (2.1, 1.2, 0.9), (1.5, 0.95, 1.1), (0.9, 1.15, 0.85),
-        (1.8, 0.75, 1.0)
-    ]
+    private let barMaxHeight: CGFloat = 22
+    private let barEnvelope: [CGFloat] = [0.5, 0.7, 0.85, 1.0, 0.75, 0.65, 0.4]
 
     // Colors
     private let capsuleBg = NSColor(calibratedRed: 20/255, green: 20/255, blue: 20/255, alpha: 0.92)
@@ -184,7 +229,6 @@ private class CapsuleView: NSView {
     // State
     var audioLevel: CGFloat = 0
     private var smoothedLevel: CGFloat = 0
-    private var peakLevel: CGFloat = 0.01
     private var timer: Timer?
     private var startTime: CFTimeInterval = 0
     private var isProcessing = false
@@ -198,7 +242,6 @@ private class CapsuleView: NSView {
         startTime = CACurrentMediaTime()
         isProcessing = false
         smoothedLevel = 0
-        peakLevel = 0.01
         // 60fps timer
         timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
             self?.needsDisplay = true
@@ -241,59 +284,33 @@ private class CapsuleView: NSView {
         }
     }
 
-    // MARK: - Waveform bars (from handless algorithm)
+    // MARK: - Waveform bars (purely RMS-driven)
 
     private func drawWaveformBars(ctx: CGContext, elapsed: Double) {
-        // Asymmetric smoothing: fast attack, slow decay
+        // Asymmetric smoothing: fast attack 40%, slow release 15%
         let dt: CGFloat = 1.0 / 60.0
-        let attackSpeed: CGFloat = 0.4
-        let decaySpeed: CGFloat = 0.3
-        let speed = audioLevel > smoothedLevel ? attackSpeed : decaySpeed
-        let alpha = 1.0 - pow(1.0 - speed, dt * 60)
+        let rate: CGFloat = audioLevel > smoothedLevel ? 0.4 : 0.15
+        let alpha = 1.0 - pow(1.0 - rate, dt * 60)
         smoothedLevel += (audioLevel - smoothedLevel) * alpha
-
-        // Adaptive peak
-        if smoothedLevel > peakLevel {
-            peakLevel = smoothedLevel
-        } else {
-            peakLevel *= pow(0.5, dt)
-            peakLevel = max(peakLevel, 0.01)
-        }
-
-        let energy = peakLevel > 0.01 ? smoothedLevel / peakLevel : 0
-        let timestamp = elapsed * 1000
 
         let totalWidth = CGFloat(barCount) * barWidth + CGFloat(barCount - 1) * barGap
         let startX = (bounds.width - totalWidth) / 2
         let centerY = bounds.height / 2
 
         for i in 0..<barCount {
-            // Organic noise modulation
-            let activity = min(energy * 2.5, 1.0)
-            let seed = Double(i) * 1.7
-            let noise = sin(timestamp * 0.0012 + seed) * 0.5
-                + sin(timestamp * 0.0012 * 2.31 + seed * 1.73) * 0.3
-                + sin(timestamp * 0.0012 * 3.67 + seed * 2.19) * 0.2
-            let heightMod: CGFloat = 1.0 + CGFloat(noise) * 0.3 * activity
-
-            let scaled = energy * barEnvelope[i] * heightMod
-            let boosted = min(1, scaled * 1.3)
-            let barH = barMinHeight + pow(boosted, 0.8) * (barMaxHeight - barMinHeight)
-
-            // Vertical wobble
-            let w = barWobble[i]
-            let wobbleAmt = min(energy * 2.5, 1.0)
-            let yOff = CGFloat(sin(timestamp * 0.001 * w.freq + w.phase) * w.amp) * wobbleAmt
+            // ±4% random jitter per bar for organic feel
+            let jitter: CGFloat = 1.0 + CGFloat.random(in: -0.04...0.04)
+            let barH = barMinHeight + smoothedLevel * barEnvelope[i] * (barMaxHeight - barMinHeight) * jitter
 
             let x = startX + CGFloat(i) * (barWidth + barGap)
-            let y = centerY - barH / 2 + yOff
+            let y = centerY - barH / 2
 
-            let barAlpha = 0.5 + energy * 0.45
+            let barAlpha = 0.5 + smoothedLevel * 0.45
             let color = barColorBase.withAlphaComponent(barAlpha)
 
             ctx.saveGState()
-            ctx.setShadow(offset: .zero, blur: 3 + energy * 10,
-                          color: NSColor(calibratedWhite: 0.7, alpha: 0.15 + energy * 0.5).cgColor)
+            ctx.setShadow(offset: .zero, blur: 3 + smoothedLevel * 8,
+                          color: NSColor(calibratedWhite: 0.7, alpha: 0.15 + smoothedLevel * 0.4).cgColor)
             color.setFill()
             let barRect = CGRect(x: x, y: y, width: barWidth, height: barH)
             let barPath = NSBezierPath(roundedRect: barRect, xRadius: barRadius, yRadius: barRadius)

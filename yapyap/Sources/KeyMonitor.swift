@@ -1,17 +1,17 @@
 import Cocoa
 
 class KeyMonitor {
-    var onRecordingStateChanged: ((Bool) -> Void)?
+    var onFnDown: (() -> Void)?
+    var onFnUp: (() -> Void)?
     private var flagsMonitor: Any?
+    private var localMonitor: Any?
     private var isFnPressed = false
 
     func start() {
         flagsMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
             self?.handleFlagsChanged(event)
         }
-
-        // Also monitor local events (when our own windows are focused)
-        NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
+        localMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
             self?.handleFlagsChanged(event)
             return event
         }
@@ -22,10 +22,10 @@ class KeyMonitor {
 
         if fnPressed && !isFnPressed {
             isFnPressed = true
-            onRecordingStateChanged?(true)
+            onFnDown?()
         } else if !fnPressed && isFnPressed {
             isFnPressed = false
-            onRecordingStateChanged?(false)
+            onFnUp?()
         }
     }
 
@@ -33,6 +33,10 @@ class KeyMonitor {
         if let monitor = flagsMonitor {
             NSEvent.removeMonitor(monitor)
             flagsMonitor = nil
+        }
+        if let monitor = localMonitor {
+            NSEvent.removeMonitor(monitor)
+            localMonitor = nil
         }
     }
 
