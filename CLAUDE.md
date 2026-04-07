@@ -31,6 +31,5 @@ This script builds the app bundle (via `bundle.sh` which runs `xcodegen` + `xcod
 ## Key Rules
 
 - **Always run `bash scripts/rebuild-and-open.sh` after modifying code** to verify the build and test changes live.
-- When user ask **push changes** run `bash scripts/commit-and-push.sh "{commit message}"` with a concise commit message summarizing the change.
 - Bilingual UI (zh/en) — add new user-facing strings to the `L10n` enum in `SettingsStore.swift`.
 - Minimum deployment target: macOS 14.0.
