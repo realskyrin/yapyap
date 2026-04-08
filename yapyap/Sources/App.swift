@@ -125,6 +125,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         keyMonitor.onFnUp = { [weak self] in
             self?.handleFnUp()
         }
+        keyMonitor.onEscPressed = { [weak self] in
+            self?.handleEscCancel()
+        }
         keyMonitor.start()
     }
 
@@ -158,6 +161,27 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             stopRecording()
         case .idle, .processing:
             break
+        }
+    }
+
+    private func handleEscCancel() {
+        switch recordingMode {
+        case .recording, .clickRecording:
+            recordingMode = .idle
+            cancelRecording()
+        case .idle, .processing:
+            break
+        }
+    }
+
+    private func cancelRecording() {
+        audioEngine.stop()
+        asrClient.disconnect()
+        DispatchQueue.main.async {
+            if let button = self.statusItem.button {
+                button.image = NSImage(systemSymbolName: "mic", accessibilityDescription: "yapyap")
+            }
+            self.overlayWindow.hide()
         }
     }
 

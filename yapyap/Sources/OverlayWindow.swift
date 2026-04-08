@@ -150,23 +150,49 @@ class OverlayWindow {
 
             textField.stringValue = text
 
-            // Calculate required text height for multi-line
             let maxTextWidth = self.bubbleMaxWidth - self.bubblePaddingH * 2
-            let textHeight = textField.cell?.cellSize(forBounds: NSRect(
-                x: 0, y: 0, width: maxTextWidth, height: .greatestFiniteMagnitude
-            )).height ?? 16
+            let font = textField.font ?? NSFont.systemFont(ofSize: 13, weight: .medium)
+
+            // Measure natural single-line text width using NSString
+            let attrs: [NSAttributedString.Key: Any] = [.font: font]
+            let singleLineWidth = ceil((text as NSString).size(withAttributes: attrs).width)
+
+            let needsWrap = singleLineWidth > maxTextWidth
+            let contentWidth: CGFloat
+            let textHeight: CGFloat
+
+            if needsWrap {
+                contentWidth = maxTextWidth
+                let boundingRect = (text as NSString).boundingRect(
+                    with: NSSize(width: maxTextWidth, height: .greatestFiniteMagnitude),
+                    options: [.usesLineFragmentOrigin, .usesFontLeading],
+                    attributes: attrs
+                )
+                textHeight = ceil(boundingRect.height)
+            } else {
+                contentWidth = singleLineWidth
+                textHeight = ceil((text as NSString).size(withAttributes: attrs).height)
+            }
+
+            let bubbleWidth = min(contentWidth + self.bubblePaddingH * 2, self.bubbleMaxWidth)
             let bubbleHeight = max(self.bubbleMinHeight, textHeight + self.bubblePaddingV * 2)
 
             // Resize text field
             textField.frame = NSRect(
                 x: self.bubblePaddingH, y: self.bubblePaddingV,
-                width: maxTextWidth,
+                width: bubbleWidth - self.bubblePaddingH * 2,
                 height: bubbleHeight - self.bubblePaddingV * 2
             )
 
-            // Resize bubble container
-            let bubbleX = (parentView.bounds.width - self.bubbleMaxWidth) / 2
-            bubbleContainer.frame = NSRect(x: bubbleX, y: 0, width: self.bubbleMaxWidth, height: bubbleHeight)
+            // Animate bubble container resize (centered in parent)
+            let bubbleX = (parentView.bounds.width - bubbleWidth) / 2
+            let targetBubbleFrame = NSRect(x: bubbleX, y: 0, width: bubbleWidth, height: bubbleHeight)
+
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.15
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                bubbleContainer.animator().frame = targetBubbleFrame
+            }
 
             // Reposition capsule below bubble
             let capsuleX = (parentView.bounds.width - self.capsuleWidthCompact) / 2
