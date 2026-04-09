@@ -1311,3 +1311,94 @@ struct UsageTabView: View {
         }
     }
 }
+
+// MARK: - Status Bar: Quick Switch Row
+
+struct QuickSwitchRow: View {
+    let title: String
+    let description: String
+    let isActive: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(alignment: .top, spacing: 8) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(.primary)
+                    Text(description)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                if isActive {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.orange)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Status Bar: Pill
+
+struct StatusPill<PopoverContent: View>: View {
+    let label: String
+    let isActive: Bool
+    @ViewBuilder let popoverContent: (Binding<Bool>) -> PopoverContent
+
+    @State private var isOpen = false
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: { isOpen.toggle() }) {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(isActive ? Color.green : Color.gray.opacity(0.5))
+                    .frame(width: 7, height: 7)
+                Text(label)
+                    .font(.system(size: 12))
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+                Image(systemName: isOpen ? "chevron.up" : "chevron.down")
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(pillBackground)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
+        .popover(isPresented: $isOpen, arrowEdge: .top) {
+            popoverContent($isOpen)
+        }
+    }
+
+    private var pillBackground: Color {
+        if isOpen {
+            return Color(nsColor: .controlBackgroundColor)
+        }
+        if isHovering {
+            return Color(nsColor: .controlBackgroundColor).opacity(0.7)
+        }
+        return Color.clear
+    }
+}
