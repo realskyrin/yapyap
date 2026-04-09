@@ -1419,6 +1419,7 @@ struct SettingsStatusBar: View {
 
     var body: some View {
         HStack(spacing: 8) {
+            voicePill
             Spacer()
             Text(versionString)
                 .font(.system(size: 11))
@@ -1434,5 +1435,69 @@ struct SettingsStatusBar: View {
     private var versionString: String {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
         return "v\(version)"
+    }
+
+    // MARK: - Voice Pill
+
+    private var voicePill: some View {
+        StatusPill(
+            label: voiceLabel,
+            isActive: voiceActive
+        ) { isOpen in
+            VStack(spacing: 0) {
+                QuickSwitchRow(
+                    title: L10n.statusBarVoiceOnlineName,
+                    description: L10n.statusBarVoiceOnlineDesc,
+                    isActive: store.asrMode == .online
+                ) {
+                    store.asrMode = .online
+                    isOpen.wrappedValue = false
+                }
+                ForEach(downloadedLocalModels, id: \.id) { model in
+                    Divider()
+                    QuickSwitchRow(
+                        title: model.name,
+                        description: localModelDescription(for: model.id),
+                        isActive: store.asrMode == .local && store.selectedModelId == model.id
+                    ) {
+                        store.asrMode = .local
+                        store.selectedModelId = model.id
+                        isOpen.wrappedValue = false
+                    }
+                }
+            }
+            .frame(width: 280)
+        }
+    }
+
+    private var voiceLabel: String {
+        switch store.asrMode {
+        case .online:
+            return L10n.statusBarVoiceOnlineName
+        case .local:
+            return modelManager.catalog.first { $0.id == store.selectedModelId }?.name ?? "Local"
+        }
+    }
+
+    private var voiceActive: Bool {
+        switch store.asrMode {
+        case .online:
+            return !store.appKey.isEmpty && !store.accessKey.isEmpty
+        case .local:
+            return !store.selectedModelId.isEmpty
+        }
+    }
+
+    private var downloadedLocalModels: [ModelInfo] {
+        modelManager.catalog.filter { modelManager.downloadedModels.contains($0.id) }
+    }
+
+    private func localModelDescription(for modelId: String) -> String {
+        switch modelId {
+        case "sensevoice-small": return L10n.statusBarModelSenseVoiceDesc
+        case "whisper-small": return L10n.statusBarModelWhisperSmallDesc
+        case "whisper-medium": return L10n.statusBarModelWhisperMediumDesc
+        default: return ""
+        }
     }
 }
