@@ -5,7 +5,6 @@ import os.log
 
 private let logger = Logger(subsystem: "cn.skyrin.yapyap", category: "LLMModelManager")
 
-@MainActor
 class LLMModelManager: ObservableObject {
     static let shared = LLMModelManager()
 
@@ -59,7 +58,7 @@ class LLMModelManager: ObservableObject {
     func downloadAndLoad() {
         guard !isDownloading, !isLoading else { return }
 
-        loadTask = Task {
+        loadTask = Task { @MainActor in
             isDownloading = true
             downloadProgress = 0
             error = nil
@@ -115,7 +114,7 @@ class LLMModelManager: ObservableObject {
         guard isDownloaded, modelContainer == nil, !isLoading else { return }
 
         isLoading = true
-        loadTask = Task {
+        loadTask = Task { @MainActor in
             do {
                 let config = ModelConfiguration(id: Self.modelId)
                 let container = try await LLMModelFactory.shared.loadContainer(

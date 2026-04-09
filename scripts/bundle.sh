@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -eo pipefail
 
 cd "$(dirname "$0")/.."
 PROJECT_ROOT="$(pwd)"
@@ -24,7 +24,7 @@ xcodebuild \
     CONFIGURATION_BUILD_DIR="$BUILD_DIR" \
     CODE_SIGN_IDENTITY="-" \
     CODE_SIGN_ENTITLEMENTS="$SCRIPT_DIR/yapyap.entitlements" \
-    clean build 2>&1 | tail -1
+    clean build 2>&1 | (grep -E "error:|warning:|BUILD SUCCEEDED|BUILD FAILED" || true) | tail -20
 
 echo "==> Code signing..."
 codesign --force --deep --sign "Apple Development: cnskyrin@gmail.com" \
