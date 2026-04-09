@@ -319,7 +319,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func finalizeText() {
         let settings = SettingsStore.shared
-        let useAI = settings.aiEnabled && !settings.aiApiKey.isEmpty
+        let useAI = settings.aiEnabled && (settings.useLocalAI || !settings.aiApiKey.isEmpty)
 
         let textToInject = useAI ? self.latestRawText : self.latestProcessedText
         guard !textToInject.isEmpty else {

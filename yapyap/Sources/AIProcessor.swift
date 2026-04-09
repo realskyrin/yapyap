@@ -11,11 +11,26 @@ enum AIProcessor {
         completion: @escaping (String) -> Void
     ) {
         let settings = SettingsStore.shared
-        guard settings.aiEnabled,
-              !settings.aiApiKey.isEmpty,
-              !settings.aiBaseURL.isEmpty,
-              !text.isEmpty else {
-            logger.info("AI processing skipped (disabled or not configured)")
+        guard settings.aiEnabled, !text.isEmpty else {
+            logger.info("AI processing skipped (disabled)")
+            completion(text)
+            return
+        }
+
+        // Route to local LLM if enabled and loaded
+        if settings.useLocalAI {
+            if LLMModelManager.shared.modelContainer != nil {
+                LocalLLMEngine.process(text: text, completion: completion)
+                return
+            } else {
+                logger.warning("Local AI enabled but model not loaded, falling back to online")
+            }
+        }
+
+        // Online path: require API key
+        guard !settings.aiApiKey.isEmpty,
+              !settings.aiBaseURL.isEmpty else {
+            logger.info("AI processing skipped (not configured)")
             completion(text)
             return
         }
