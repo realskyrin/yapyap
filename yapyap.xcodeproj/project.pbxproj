@@ -10,13 +10,18 @@
 		0BE64561FFFA12B91BE17D6F /* AudioEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30F0F85D62EA9D1962EB6C99 /* AudioEngine.swift */; };
 		345410B1DFC3F963A8CAD8A5 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E3FF9BE4023CDF2721086E9 /* App.swift */; };
 		3483F8A0604A31A42F574938 /* TextInjector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52B0BFD0EABFB723816C87B5 /* TextInjector.swift */; };
+		3F0698CA3A08D80D205E476A /* stop1.wav in Resources */ = {isa = PBXBuildFile; fileRef = 63DEAA2C0A9DA289F2603420 /* stop1.wav */; };
+		5296A0F3561F170150F217CC /* stop2.wav in Resources */ = {isa = PBXBuildFile; fileRef = FA47BC0B528F276D4055DEE2 /* stop2.wav */; };
 		973A8F97F8F4D65FBE2BDDC0 /* KeyMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 959FBD13DCAB2732250D480A /* KeyMonitor.swift */; };
 		991C968E71E666F1159E8C71 /* AIProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DCE7F0A96A0438FE4AF3CE6 /* AIProcessor.swift */; };
 		9B8F341DBE6F62081F7EEF0D /* OverlayWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BE3935D1F280E62F01B78CB /* OverlayWindow.swift */; };
 		BA526C4531AEAAC821656054 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 710DDCD36DDB21123243F33D /* SettingsView.swift */; };
+		BB4A38874D6DCE7CB5023EFF /* start1.wav in Resources */ = {isa = PBXBuildFile; fileRef = E89B06A74E01E5759D5F63BF /* start1.wav */; };
 		BED19BE3FB8E8BC8024EF312 /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F122D7DBD16D89B70DFBAA73 /* SettingsStore.swift */; };
+		D5E0EC7E63DDD453FC31DE2F /* SoundFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5567FD45C68816085CCFAEB /* SoundFeedback.swift */; };
 		ED426A2B03CEEA4EB6A44212 /* TextProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F605C96EF7F32A1F67978EBA /* TextProcessor.swift */; };
 		F2166F3510E0E89A2A4E3071 /* ASRClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AF5C67BF95B1B58BEF6F7F9 /* ASRClient.swift */; };
+		F4FB3D9BFBFAD11831BD23D3 /* start2.wav in Resources */ = {isa = PBXBuildFile; fileRef = 6AF7A65A9F788B24303A842C /* start2.wav */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -26,21 +31,38 @@
 		3DCE7F0A96A0438FE4AF3CE6 /* AIProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProcessor.swift; sourceTree = "<group>"; };
 		3E3FF9BE4023CDF2721086E9 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
 		52B0BFD0EABFB723816C87B5 /* TextInjector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextInjector.swift; sourceTree = "<group>"; };
+		63DEAA2C0A9DA289F2603420 /* stop1.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = stop1.wav; sourceTree = "<group>"; };
+		6AF7A65A9F788B24303A842C /* start2.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = start2.wav; sourceTree = "<group>"; };
 		710DDCD36DDB21123243F33D /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		959FBD13DCAB2732250D480A /* KeyMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyMonitor.swift; sourceTree = "<group>"; };
 		CFB103102A3815782322312C /* yapyap.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = yapyap.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D5567FD45C68816085CCFAEB /* SoundFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SoundFeedback.swift; sourceTree = "<group>"; };
 		DAF3FADD43C22010931BBB37 /* yapyap.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = yapyap.entitlements; sourceTree = "<group>"; };
+		E89B06A74E01E5759D5F63BF /* start1.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = start1.wav; sourceTree = "<group>"; };
 		F122D7DBD16D89B70DFBAA73 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
 		F605C96EF7F32A1F67978EBA /* TextProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextProcessor.swift; sourceTree = "<group>"; };
 		F6A18FDC4769A1B9C1A9ED1B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		FA47BC0B528F276D4055DEE2 /* stop2.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = stop2.wav; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
+		22C8A9AB2AD49E6EFA71AD67 /* Sounds */ = {
+			isa = PBXGroup;
+			children = (
+				E89B06A74E01E5759D5F63BF /* start1.wav */,
+				6AF7A65A9F788B24303A842C /* start2.wav */,
+				63DEAA2C0A9DA289F2603420 /* stop1.wav */,
+				FA47BC0B528F276D4055DEE2 /* stop2.wav */,
+			);
+			path = Sounds;
+			sourceTree = "<group>";
+		};
 		6B4424B342CFA2D865BD7E95 /* Resources */ = {
 			isa = PBXGroup;
 			children = (
 				F6A18FDC4769A1B9C1A9ED1B /* Info.plist */,
 				DAF3FADD43C22010931BBB37 /* yapyap.entitlements */,
+				22C8A9AB2AD49E6EFA71AD67 /* Sounds */,
 			);
 			name = Resources;
 			path = yapyap/Resources;
@@ -57,6 +79,7 @@
 				1BE3935D1F280E62F01B78CB /* OverlayWindow.swift */,
 				F122D7DBD16D89B70DFBAA73 /* SettingsStore.swift */,
 				710DDCD36DDB21123243F33D /* SettingsView.swift */,
+				D5567FD45C68816085CCFAEB /* SoundFeedback.swift */,
 				52B0BFD0EABFB723816C87B5 /* TextInjector.swift */,
 				F605C96EF7F32A1F67978EBA /* TextProcessor.swift */,
 			);
@@ -89,6 +112,7 @@
 			buildConfigurationList = B88CF2727EF7130E00C34F1B /* Build configuration list for PBXNativeTarget "yapyap" */;
 			buildPhases = (
 				8CCFD412CED78B6927673BAF /* Sources */,
+				2A04902532159B1A344F1A14 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -131,6 +155,20 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		2A04902532159B1A344F1A14 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BB4A38874D6DCE7CB5023EFF /* start1.wav in Resources */,
+				F4FB3D9BFBFAD11831BD23D3 /* start2.wav in Resources */,
+				3F0698CA3A08D80D205E476A /* stop1.wav in Resources */,
+				5296A0F3561F170150F217CC /* stop2.wav in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		8CCFD412CED78B6927673BAF /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -144,6 +182,7 @@
 				9B8F341DBE6F62081F7EEF0D /* OverlayWindow.swift in Sources */,
 				BED19BE3FB8E8BC8024EF312 /* SettingsStore.swift in Sources */,
 				BA526C4531AEAAC821656054 /* SettingsView.swift in Sources */,
+				D5E0EC7E63DDD453FC31DE2F /* SoundFeedback.swift in Sources */,
 				3483F8A0604A31A42F574938 /* TextInjector.swift in Sources */,
 				ED426A2B03CEEA4EB6A44212 /* TextProcessor.swift in Sources */,
 			);

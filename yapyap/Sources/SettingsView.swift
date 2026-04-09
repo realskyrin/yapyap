@@ -220,6 +220,38 @@ struct GeneralTabView: View {
                 }
             }
 
+            SectionCard(header: L10n.soundHeader) {
+                CardRow(label: L10n.soundEnabled) {
+                    Toggle("", isOn: $store.soundEnabled)
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                }
+                if store.soundEnabled {
+                    CardDivider()
+                    CardRow(label: L10n.soundTheme) {
+                        HStack(spacing: 8) {
+                            Picker("", selection: $store.soundTheme) {
+                                ForEach(SoundTheme.allCases, id: \.self) { theme in
+                                    Text(theme.displayName).tag(theme)
+                                }
+                            }
+                            .labelsHidden()
+                            Button(action: {
+                                SoundFeedback.shared.previewStart()
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                                    SoundFeedback.shared.previewStop()
+                                }
+                            }) {
+                                Image(systemName: "speaker.wave.2")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .buttonStyle(.borderless)
+                            .help(L10n.soundPreview)
+                        }
+                    }
+                }
+            }
+
         }
         .onAppear { checkPermissions() }
         .onReceive(permissionTimer) { _ in checkPermissions() }

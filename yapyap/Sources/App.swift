@@ -209,6 +209,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         latestRawText = ""
         latestProcessedText = ""
 
+        SoundFeedback.shared.playStart()
+
         DispatchQueue.main.async {
             if let button = self.statusItem.button {
                 button.image = NSImage(systemSymbolName: "mic.fill", accessibilityDescription: "Recording")
@@ -237,6 +239,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     private func stopRecording() {
+        SoundFeedback.shared.playStop()
+
         DispatchQueue.main.async {
             if let button = self.statusItem.button {
                 button.image = NSImage(systemSymbolName: "mic", accessibilityDescription: "yapyap")

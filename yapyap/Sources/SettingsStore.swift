@@ -95,6 +95,10 @@ enum L10n {
     static var aiFetchFailed: String { lang == .zh ? "拉取失败" : "Fetch failed" }
 
     // Startup dialog
+    static var soundHeader: String { lang == .zh ? "提示音" : "Sound" }
+    static var soundEnabled: String { lang == .zh ? "启用提示音" : "Enable sound feedback" }
+    static var soundTheme: String { lang == .zh ? "提示音" : "Sound" }
+    static var soundPreview: String { lang == .zh ? "试听" : "Preview" }
     static var showMenuBarIcon: String { lang == .zh ? "显示菜单栏图标" : "Show Menu Bar Icon" }
     static var permissionsHeader: String { lang == .zh ? "所需权限" : "Required Permissions" }
     static var micPermission: String { lang == .zh ? "麦克风" : "Microphone" }
@@ -154,6 +158,32 @@ enum AIProvider: String, CaseIterable {
     }
 }
 
+enum SoundTheme: String, CaseIterable {
+    case sound1 = "1"
+    case sound2 = "2"
+
+    var displayName: String {
+        switch self {
+        case .sound1: return L10n.lang == .zh ? "提示音 1" : "Sound 1"
+        case .sound2: return L10n.lang == .zh ? "提示音 2" : "Sound 2"
+        }
+    }
+
+    var startFile: String {
+        switch self {
+        case .sound1: return "start1"
+        case .sound2: return "start2"
+        }
+    }
+
+    var stopFile: String {
+        switch self {
+        case .sound1: return "stop1"
+        case .sound2: return "stop2"
+        }
+    }
+}
+
 enum PunctuationMode: String, CaseIterable {
     case keepOriginal = "keepOriginal"
     case spaceReplace = "spaceReplace"
@@ -190,6 +220,12 @@ class SettingsStore: ObservableObject {
     }
     @Published var showMenuBar: Bool {
         didSet { UserDefaults.standard.set(showMenuBar, forKey: "showMenuBar") }
+    }
+    @Published var soundEnabled: Bool {
+        didSet { UserDefaults.standard.set(soundEnabled, forKey: "soundEnabled") }
+    }
+    @Published var soundTheme: SoundTheme {
+        didSet { UserDefaults.standard.set(soundTheme.rawValue, forKey: "soundTheme") }
     }
     @Published var aiEnabled: Bool {
         didSet { UserDefaults.standard.set(aiEnabled, forKey: "aiEnabled") }
@@ -234,6 +270,12 @@ class SettingsStore: ObservableObject {
         } else {
             self.showMenuBar = UserDefaults.standard.bool(forKey: "showMenuBar")
         }
+        if UserDefaults.standard.object(forKey: "soundEnabled") == nil {
+            self.soundEnabled = true
+        } else {
+            self.soundEnabled = UserDefaults.standard.bool(forKey: "soundEnabled")
+        }
+        self.soundTheme = SoundTheme(rawValue: UserDefaults.standard.string(forKey: "soundTheme") ?? "") ?? .sound1
         self.aiEnabled = UserDefaults.standard.bool(forKey: "aiEnabled")
         let storedBaseURL = UserDefaults.standard.string(forKey: "aiBaseURL") ?? "https://api.openai.com/v1"
         self.aiBaseURL = storedBaseURL
