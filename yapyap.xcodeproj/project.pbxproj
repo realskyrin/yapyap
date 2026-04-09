@@ -13,6 +13,7 @@
 		3483F8A0604A31A42F574938 /* TextInjector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52B0BFD0EABFB723816C87B5 /* TextInjector.swift */; };
 		3F0698CA3A08D80D205E476A /* stop1.wav in Resources */ = {isa = PBXBuildFile; fileRef = 63DEAA2C0A9DA289F2603420 /* stop1.wav */; };
 		5296A0F3561F170150F217CC /* stop2.wav in Resources */ = {isa = PBXBuildFile; fileRef = FA47BC0B528F276D4055DEE2 /* stop2.wav */; };
+		649CF0BFCDA0D7F1D4148C28 /* MLXLLM in Frameworks */ = {isa = PBXBuildFile; productRef = 5198DDCC72A593B168835BAB /* MLXLLM */; };
 		973A8F97F8F4D65FBE2BDDC0 /* KeyMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 959FBD13DCAB2732250D480A /* KeyMonitor.swift */; };
 		991C968E71E666F1159E8C71 /* AIProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DCE7F0A96A0438FE4AF3CE6 /* AIProcessor.swift */; };
 		9B8F341DBE6F62081F7EEF0D /* OverlayWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BE3935D1F280E62F01B78CB /* OverlayWindow.swift */; };
@@ -60,6 +61,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				19E6B331B029ADE02F0D0913 /* sherpa-onnx.xcframework in Frameworks */,
+				649CF0BFCDA0D7F1D4148C28 /* MLXLLM in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -154,6 +156,7 @@
 			);
 			name = yapyap;
 			packageProductDependencies = (
+				5198DDCC72A593B168835BAB /* MLXLLM */,
 			);
 			productName = yapyap;
 			productReference = CFB103102A3815782322312C /* yapyap.app */;
@@ -179,6 +182,9 @@
 			);
 			mainGroup = DC24BA5B51EA197D0706DACD;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				2F1096381F44288E3CE8DBD2 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = ECF1BC7CB6AF3D0BAA35EB0B /* Products */;
 			projectDirPath = "";
@@ -437,6 +443,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		2F1096381F44288E3CE8DBD2 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ml-explore/mlx-swift-lm";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.29.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5198DDCC72A593B168835BAB /* MLXLLM */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2F1096381F44288E3CE8DBD2 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */;
+			productName = MLXLLM;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = BAD15110BAC6D70F311B1374 /* Project object */;
 }

@@ -12,6 +12,11 @@ settings:
     MACOSX_DEPLOYMENT_TARGET: "14.0"
     ARCHS: arm64
 
+packages:
+  mlx-swift-lm:
+    url: https://github.com/ml-explore/mlx-swift-lm
+    from: "2.29.1"
+
 targets:
   yapyap:
     type: application
@@ -39,5 +44,7 @@ targets:
     dependencies:
       - framework: Frameworks/sherpa-onnx.xcframework
         embed: false
+      - package: mlx-swift-lm
+        product: MLXLLM
     entitlements:
       path: yapyap/Resources/yapyap.entitlements
