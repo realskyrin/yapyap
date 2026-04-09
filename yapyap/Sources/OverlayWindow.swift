@@ -220,10 +220,13 @@ class OverlayWindow {
         let maxTextWidth = self.bubbleMaxWidth - self.bubblePaddingH * 2
         let font = textField.font ?? NSFont.systemFont(ofSize: 13, weight: .medium)
 
-        // Measure text size
-        let attrs: [NSAttributedString.Key: Any] = [.font: font]
-        let singleLineWidth = ceil((text as NSString).size(withAttributes: attrs).width)
+        // Measure text size using the text field's cell for accurate width
+        // (NSString.size(withAttributes:) underestimates by ignoring cell margins)
+        textField.stringValue = text
+        let cellSize = textField.cell?.cellSize ?? .zero
+        let singleLineWidth = ceil(cellSize.width)
 
+        let attrs: [NSAttributedString.Key: Any] = [.font: font]
         let needsWrap = singleLineWidth > maxTextWidth
         let contentWidth: CGFloat
         let textHeight: CGFloat
@@ -238,7 +241,7 @@ class OverlayWindow {
             textHeight = ceil(boundingRect.height)
         } else {
             contentWidth = singleLineWidth
-            textHeight = ceil((text as NSString).size(withAttributes: attrs).height)
+            textHeight = ceil(cellSize.height)
         }
 
         let bubbleWidth = min(contentWidth + self.bubblePaddingH * 2, self.bubbleMaxWidth)
