@@ -24,6 +24,7 @@
 		ED426A2B03CEEA4EB6A44212 /* TextProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F605C96EF7F32A1F67978EBA /* TextProcessor.swift */; };
 		F2166F3510E0E89A2A4E3071 /* ASRClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AF5C67BF95B1B58BEF6F7F9 /* ASRClient.swift */; };
 		F4FB3D9BFBFAD11831BD23D3 /* start2.wav in Resources */ = {isa = PBXBuildFile; fileRef = 6AF7A65A9F788B24303A842C /* start2.wav */; };
+		F671EE587B9E2B96AF13516B /* ModelManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF3A17183EA7E01926E0C605 /* ModelManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -48,6 +49,7 @@
 		F6A18FDC4769A1B9C1A9ED1B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		F7645C7B7CE95CF7712ED4BD /* SherpaOnnx-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "SherpaOnnx-Bridging-Header.h"; sourceTree = "<group>"; };
 		FA47BC0B528F276D4055DEE2 /* stop2.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = stop2.wav; sourceTree = "<group>"; };
+		FF3A17183EA7E01926E0C605 /* ModelManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -100,6 +102,7 @@
 				3AF5C67BF95B1B58BEF6F7F9 /* ASRClient.swift */,
 				30F0F85D62EA9D1962EB6C99 /* AudioEngine.swift */,
 				959FBD13DCAB2732250D480A /* KeyMonitor.swift */,
+				FF3A17183EA7E01926E0C605 /* ModelManager.swift */,
 				1BE3935D1F280E62F01B78CB /* OverlayWindow.swift */,
 				F122D7DBD16D89B70DFBAA73 /* SettingsStore.swift */,
 				710DDCD36DDB21123243F33D /* SettingsView.swift */,
@@ -207,6 +210,7 @@
 				345410B1DFC3F963A8CAD8A5 /* App.swift in Sources */,
 				0BE64561FFFA12B91BE17D6F /* AudioEngine.swift in Sources */,
 				973A8F97F8F4D65FBE2BDDC0 /* KeyMonitor.swift in Sources */,
+				F671EE587B9E2B96AF13516B /* ModelManager.swift in Sources */,
 				9B8F341DBE6F62081F7EEF0D /* OverlayWindow.swift in Sources */,
 				BED19BE3FB8E8BC8024EF312 /* SettingsStore.swift in Sources */,
 				BA526C4531AEAAC821656054 /* SettingsView.swift in Sources */,
