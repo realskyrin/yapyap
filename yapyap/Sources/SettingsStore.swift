@@ -99,6 +99,32 @@ enum L10n {
     static var soundEnabled: String { lang == .zh ? "启用提示音" : "Enable sound feedback" }
     static var soundTheme: String { lang == .zh ? "提示音" : "Sound" }
     static var soundPreview: String { lang == .zh ? "试听" : "Preview" }
+
+    // ASR mode
+    static var asrModeHeader: String { lang == .zh ? "识别模式" : "ASR Mode" }
+    static var localModelsHeader: String { lang == .zh ? "本地模型" : "Local Models" }
+    static var modelDownload: String { lang == .zh ? "下载" : "Download" }
+    static var modelDelete: String { lang == .zh ? "删除" : "Delete" }
+    static var modelActive: String { lang == .zh ? "使用中" : "Active" }
+    static var modelDownloading: String { lang == .zh ? "下载中..." : "Downloading..." }
+    static var modelExtracting: String { lang == .zh ? "解压中..." : "Extracting..." }
+    static var modelNotDownloaded: String { lang == .zh ? "未下载" : "Not downloaded" }
+    static var modelDownloaded: String { lang == .zh ? "已下载" : "Downloaded" }
+    static var noModelHint: String {
+        lang == .zh
+            ? "请先下载一个模型以使用本地识别"
+            : "Please download a model to use local recognition"
+    }
+    static var notConfiguredLocalTitle: String { lang == .zh ? "模型未就绪" : "Model Not Ready" }
+    static var notConfiguredLocalMessage: String {
+        lang == .zh
+            ? "请在设置中下载并选择一个本地模型。"
+            : "Please download and select a local model in Settings."
+    }
+    static var cancelDownload: String { lang == .zh ? "取消" : "Cancel" }
+    static var languages99: String { lang == .zh ? "99 种语言" : "99 languages" }
+    static var languagesCJKE: String { lang == .zh ? "中/英/日/韩/粤" : "zh/en/ja/ko/yue" }
+
     static var showMenuBarIcon: String { lang == .zh ? "显示菜单栏图标" : "Show Menu Bar Icon" }
     static var permissionsHeader: String { lang == .zh ? "所需权限" : "Required Permissions" }
     static var micPermission: String { lang == .zh ? "麦克风" : "Microphone" }
@@ -184,6 +210,18 @@ enum SoundTheme: String, CaseIterable {
     }
 }
 
+enum ASRMode: String, CaseIterable {
+    case online = "online"
+    case local = "local"
+
+    var displayName: String {
+        switch self {
+        case .online: return L10n.lang == .zh ? "在线 (豆包)" : "Online (Doubao)"
+        case .local: return L10n.lang == .zh ? "本地模型" : "Local Model"
+        }
+    }
+}
+
 enum PunctuationMode: String, CaseIterable {
     case keepOriginal = "keepOriginal"
     case spaceReplace = "spaceReplace"
@@ -226,6 +264,12 @@ class SettingsStore: ObservableObject {
     }
     @Published var soundTheme: SoundTheme {
         didSet { UserDefaults.standard.set(soundTheme.rawValue, forKey: "soundTheme") }
+    }
+    @Published var asrMode: ASRMode {
+        didSet { UserDefaults.standard.set(asrMode.rawValue, forKey: "asrMode") }
+    }
+    @Published var selectedModelId: String {
+        didSet { UserDefaults.standard.set(selectedModelId, forKey: "selectedModelId") }
     }
     @Published var aiEnabled: Bool {
         didSet { UserDefaults.standard.set(aiEnabled, forKey: "aiEnabled") }
@@ -276,6 +320,8 @@ class SettingsStore: ObservableObject {
             self.soundEnabled = UserDefaults.standard.bool(forKey: "soundEnabled")
         }
         self.soundTheme = SoundTheme(rawValue: UserDefaults.standard.string(forKey: "soundTheme") ?? "") ?? .sound1
+        self.asrMode = ASRMode(rawValue: UserDefaults.standard.string(forKey: "asrMode") ?? "") ?? .online
+        self.selectedModelId = UserDefaults.standard.string(forKey: "selectedModelId") ?? ""
         self.aiEnabled = UserDefaults.standard.bool(forKey: "aiEnabled")
         let storedBaseURL = UserDefaults.standard.string(forKey: "aiBaseURL") ?? "https://api.openai.com/v1"
         self.aiBaseURL = storedBaseURL
