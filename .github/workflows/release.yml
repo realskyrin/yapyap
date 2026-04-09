@@ -27,9 +27,20 @@ jobs:
 
       - name: Select Xcode
         run: |
-          sudo xcode-select -s /Applications/Xcode_16.2.app || \
-          sudo xcode-select -s /Applications/Xcode.app
+          # mlx-swift-lm 2.31.x requires Swift tools 6.1, so prefer Xcode 16.3+.
+          for XCODE_PATH in \
+            /Applications/Xcode_16.4.app \
+            /Applications/Xcode_16.3.app \
+            /Applications/Xcode.app
+          do
+            if [ -d "$XCODE_PATH" ]; then
+              sudo xcode-select -s "$XCODE_PATH"
+              break
+            fi
+          done
+
           xcodebuild -version
+          xcrun swift --version
 
       - name: Install XcodeGen
         run: brew install xcodegen
