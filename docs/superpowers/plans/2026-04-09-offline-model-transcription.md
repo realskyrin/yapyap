@@ -172,7 +172,7 @@ enum ASRMode: String, CaseIterable {
 
     var displayName: String {
         switch self {
-        case .online: return L10n.lang == .zh ? "在线 (豆包)" : "Online (Doubao)"
+        case .online: return L10n.lang == .zh ? "在线" : "Online"
         case .local: return L10n.lang == .zh ? "本地模型" : "Local Model"
         }
     }

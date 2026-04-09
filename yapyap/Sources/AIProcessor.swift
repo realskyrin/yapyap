@@ -44,9 +44,7 @@ enum AIProcessor {
             return
         }
 
-        var systemPrompt = settings.aiPrompt.isEmpty
-            ? "You are a text correction assistant. Fix any speech recognition errors and grammar issues in the following text. Return only the corrected text, nothing else."
-            : settings.aiPrompt
+        var systemPrompt = settings.effectiveSystemPrompt
 
         if !settings.aiTerms.isEmpty {
             let termsList = settings.aiTerms.map { "- \($0)" }.joined(separator: "\n")

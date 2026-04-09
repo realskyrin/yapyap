@@ -18,20 +18,22 @@ enum LocalLLMEngine {
             return
         }
 
-        // Build system prompt (same logic as AIProcessor)
-        var systemPrompt = settings.aiPrompt.isEmpty
-            ? "You are a text correction assistant. Fix any speech recognition errors and grammar issues in the following text. Return only the corrected text, nothing else."
-            : settings.aiPrompt
+        // Resolved via SettingsStore so UI, online path, and local path stay in sync.
+        var systemPrompt = settings.effectiveSystemPrompt
 
         if !settings.aiTerms.isEmpty {
             let termsList = settings.aiTerms.map { "- \($0)" }.joined(separator: "\n")
-            systemPrompt += "\n\nIMPORTANT: The following terms/proper nouns must be used exactly as written when they appear in the text. Speech recognition may have misrecognized them:\n\(termsList)"
+            systemPrompt += """
+
+
+            Glossary — proper nouns and technical terms the speaker may use. ONLY substitute \
+            when the input clearly contains a misrecognized form of one of these. Do NOT insert \
+            these into the output if the input doesn't match them:
+            \(termsList)
+            """
         }
 
         logger.info("Local LLM processing: \(text.prefix(50))...")
-
-        // Append /no_think to user message to disable Qwen3 thinking mode
-        let userMessage = text + " /no_think"
 
         Task {
             do {
@@ -44,8 +46,10 @@ enum LocalLLMEngine {
                     )
                 )
 
-                let result = try await session.respond(to: userMessage)
-                let corrected = result.trimmingCharacters(in: .whitespacesAndNewlines)
+                // Qwen3-Instruct-2507 is a non-thinking model — don't append /no_think,
+                // it gets echoed back as literal text.
+                let raw = try await session.respond(to: text)
+                let corrected = sanitize(raw, fallback: text)
                 logger.info("Local LLM result: \(corrected.prefix(50))...")
 
                 DispatchQueue.main.async { completion(corrected) }
@@ -54,5 +58,24 @@ enum LocalLLMEngine {
                 DispatchQueue.main.async { completion(text) }
             }
         }
+    }
+
+    /// Defensive cleanup: strip thinking blocks, stray control tokens,
+    /// and fall back to the original text if the model returned nothing.
+    private static func sanitize(_ raw: String, fallback: String) -> String {
+        var result = raw
+
+        // Strip <think>...</think> blocks in case a thinking variant leaks them.
+        if let regex = try? NSRegularExpression(pattern: "<think>[\\s\\S]*?</think>", options: []) {
+            let range = NSRange(result.startIndex..., in: result)
+            result = regex.stringByReplacingMatches(in: result, options: [], range: range, withTemplate: "")
+        }
+
+        // Strip stray /no_think directives the model may echo.
+        result = result.replacingOccurrences(of: "/no_think", with: "", options: .caseInsensitive)
+
+        result = result.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return result.isEmpty ? fallback : result
     }
 }

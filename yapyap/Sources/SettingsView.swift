@@ -648,7 +648,6 @@ struct AITabView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             SectionCard(header: L10n.aiHeader) {
-                // Enable toggle
                 CardRow(label: L10n.aiEnabled) {
                     Toggle("", isOn: $store.aiEnabled)
                         .labelsHidden()
@@ -657,239 +656,277 @@ struct AITabView: View {
             }
 
             if store.aiEnabled {
-                // Local model section
-                SectionCard(header: L10n.localAIHeader) {
-                    CardRow(label: L10n.useLocalAI) {
-                        Toggle("", isOn: $store.useLocalAI)
-                            .labelsHidden()
-                            .toggleStyle(.switch)
-                            .onChange(of: store.useLocalAI) { _, enabled in
-                                if enabled { llmManager.ensureLoaded() }
-                            }
+                // Mode picker (parallel to ASR tab)
+                SectionCard(header: L10n.aiModeHeader) {
+                    Picker("", selection: $store.useLocalAI) {
+                        Text(L10n.aiModeOnline).tag(false)
+                        Text(L10n.aiModeLocal).tag(true)
                     }
-
-                    if store.useLocalAI {
-                        CardDivider()
-                        // Model card
-                        HStack(alignment: .top) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack(spacing: 8) {
-                                    Text(L10n.localAIModelName)
-                                        .font(.system(size: 13, weight: .medium))
-                                    Text(L10n.localAIModelSize)
-                                        .font(.caption)
-                                        .foregroundStyle(.tertiary)
-                                }
-                                if llmManager.isDownloading {
-                                    Text(L10n.localAIDownloading)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                } else if llmManager.isLoading {
-                                    Text(L10n.localAILoading)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                } else if llmManager.isDownloaded {
-                                    Text(L10n.localAIReady)
-                                        .font(.caption)
-                                        .foregroundStyle(.green)
-                                } else {
-                                    Text(L10n.localAINotDownloaded)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-
-                            Spacer()
-
-                            if llmManager.isDownloading {
-                                Button(L10n.cancelDownload) {
-                                    llmManager.cancelDownload()
-                                }
-                                .controlSize(.small)
-                            } else if llmManager.isDownloaded {
-                                Button(action: { llmManager.delete() }) {
-                                    Image(systemName: "trash")
-                                        .foregroundStyle(.red.opacity(0.7))
-                                }
-                                .buttonStyle(.borderless)
-                            } else {
-                                Button(L10n.modelDownload) {
-                                    llmManager.downloadAndLoad()
-                                }
-                                .controlSize(.small)
-                            }
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-
-                        // Download progress
-                        if llmManager.isDownloading {
-                            VStack(spacing: 4) {
-                                ProgressView(value: llmManager.downloadProgress)
-                                    .progressViewStyle(.linear)
-                                HStack {
-                                    Text("\(Int(llmManager.downloadProgress * 100))%")
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                    Spacer()
-                                }
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.bottom, 10)
-                        }
-
-                        // Error display
-                        if let error = llmManager.error {
-                            Text(error)
-                                .font(.caption)
-                                .foregroundStyle(.red)
-                                .padding(.horizontal, 12)
-                                .padding(.bottom, 8)
-                        }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .padding(12)
+                    .onChange(of: store.useLocalAI) { _, enabled in
+                        if enabled { llmManager.ensureLoaded() }
                     }
                 }
 
-                SectionCard(header: L10n.aiOnlineHeader) {
-                    // Provider
-                    CardRow(label: L10n.aiProviderLabel) {
-                        Picker("", selection: $store.aiProvider) {
-                            ForEach(AIProvider.allCases, id: \.self) { provider in
-                                Text(provider.displayName).tag(provider)
-                            }
-                        }
-                        .labelsHidden()
-                    }
-
-                    // Base URL (only for Custom)
-                    if store.aiProvider == .custom {
-                        CardDivider()
-                        CardRow(label: L10n.aiBaseURL) {
-                            TextField("https://api.example.com/v1", text: $store.aiBaseURL)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(maxWidth: .infinity)
-                        }
-                    }
-
-                    CardDivider()
-
-                    // API Key
-                    CardRow(label: L10n.aiApiKeyLabel) {
-                        HStack(spacing: 4) {
-                            if showAIKey {
-                                TextField("sk-...", text: $store.aiApiKey)
-                                    .textFieldStyle(.roundedBorder)
-                            } else {
-                                SecureField("sk-...", text: $store.aiApiKey)
-                                    .textFieldStyle(.roundedBorder)
-                            }
-                            Button(action: { showAIKey.toggle() }) {
-                                Image(systemName: showAIKey ? "eye.slash" : "eye")
-                                    .foregroundStyle(.secondary)
-                            }
-                            .buttonStyle(.borderless)
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-
-                    CardDivider()
-
-                    // Model with fetch
-                    CardRow(label: L10n.aiModel) {
-                        HStack(spacing: 6) {
-                            modelSelector
-                            Button(action: fetchModels) {
-                                if isFetchingModels {
-                                    ProgressView().controlSize(.small)
-                                } else {
-                                    Image(systemName: "arrow.triangle.2.circlepath")
-                                }
-                            }
-                            .buttonStyle(.borderless)
-                            .disabled(store.aiApiKey.isEmpty || isFetchingModels)
-                            .help(L10n.lang == .zh ? "拉取可用模型" : "Fetch available models")
-                        }
-                    }
-
-                    if let fetchError {
-                        Text(fetchError)
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                            .padding(.horizontal, 12)
-                            .padding(.bottom, 6)
-                    }
+                // Mode-specific settings
+                if store.useLocalAI {
+                    localAIModelCard
+                } else {
+                    onlineProviderSection
                 }
-                .opacity(store.useLocalAI ? 0.5 : 1.0)
-                .disabled(store.useLocalAI)
 
-                SectionCard(header: L10n.aiPrompt) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        TextEditor(text: $store.aiPrompt)
-                            .font(.system(size: 12))
-                            .frame(height: 80)
-                            .scrollContentBackground(.hidden)
-                        Text(L10n.aiPromptPlaceholder)
+                // Common: System Prompt (shared between online and local)
+                // Common: System Prompt (shared between online and local)
+                systemPromptSection
+
+                // Common: Terms (shared between online and local)
+                termsSection
+            }
+        }
+    }
+
+    // MARK: - Local AI Model Card
+
+    private var localAIModelCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+                        Text(L10n.localAIModelName)
+                            .font(.system(size: 13, weight: .medium))
+                        Text(L10n.localAIModelSize)
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     }
-                    .padding(12)
-                }
-                .opacity(store.useLocalAI ? 0.5 : 1.0)
-                .disabled(store.useLocalAI)
-
-                // Terms section
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 4) {
-                        Text(L10n.aiTermsHeader)
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(.secondary)
-                        Image(systemName: "info.circle")
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
-                            .onHover { showTermsTooltip = $0 }
-                            .popover(isPresented: $showTermsTooltip, arrowEdge: .trailing) {
-                                Text(L10n.aiTermsTooltip)
-                                    .font(.system(size: 12))
-                                    .padding(8)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                    .frame(maxWidth: 240)
-                            }
+                    if llmManager.isDownloading {
+                        Text(L10n.localAIDownloading)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else if llmManager.isLoading {
+                        Text(L10n.localAILoading)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else if llmManager.isDownloaded {
+                        Text(L10n.localAIReady)
+                            .font(.caption)
+                            .foregroundStyle(.green)
+                    } else {
+                        Text(L10n.localAINotDownloaded)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
-                    .padding(.leading, 2)
-
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(spacing: 8) {
-                            TextField(L10n.aiTermsPlaceholder, text: $newTerm)
-                                .textFieldStyle(.roundedBorder)
-                                .onSubmit { addTerm() }
-                            Button(L10n.aiTermsAdd) { addTerm() }
-                                .disabled(newTerm.trimmingCharacters(in: .whitespaces).isEmpty)
-                        }
-
-                        if !store.aiTerms.isEmpty {
-                            FlowLayout(spacing: 8) {
-                                ForEach(store.aiTerms, id: \.self) { term in
-                                    TermTag(text: term) {
-                                        store.aiTerms.removeAll { $0 == term }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .padding(12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color(nsColor: .controlBackgroundColor))
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5)
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
-                .opacity(store.useLocalAI ? 0.5 : 1.0)
-                .disabled(store.useLocalAI)
+
+                Spacer()
+
+                if llmManager.isDownloading {
+                    Button(L10n.cancelDownload) {
+                        llmManager.cancelDownload()
+                    }
+                    .controlSize(.small)
+                } else if llmManager.isDownloaded {
+                    HStack(spacing: 8) {
+                        Text(L10n.modelActive)
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                            .fontWeight(.medium)
+                        Button(action: { llmManager.delete() }) {
+                            Image(systemName: "trash")
+                                .foregroundStyle(.red.opacity(0.7))
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                } else {
+                    Button(L10n.modelDownload) {
+                        llmManager.downloadAndLoad()
+                    }
+                    .controlSize(.small)
+                }
             }
+            .padding(12)
+
+            if llmManager.isDownloading {
+                VStack(spacing: 4) {
+                    ProgressView(value: llmManager.downloadProgress)
+                        .progressViewStyle(.linear)
+                    HStack {
+                        Text("\(Int(llmManager.downloadProgress * 100))%")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.bottom, 10)
+            }
+
+            if let error = llmManager.error {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 8)
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color(nsColor: .controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(
+                    llmManager.isDownloaded ? Color.orange.opacity(0.5) : Color(nsColor: .separatorColor).opacity(0.5),
+                    lineWidth: llmManager.isDownloaded ? 1.5 : 0.5
+                )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    // MARK: - Online Provider Section
+
+    private var onlineProviderSection: some View {
+        SectionCard(header: L10n.aiOnlineHeader) {
+            CardRow(label: L10n.aiProviderLabel) {
+                Picker("", selection: $store.aiProvider) {
+                    ForEach(AIProvider.allCases, id: \.self) { provider in
+                        Text(provider.displayName).tag(provider)
+                    }
+                }
+                .labelsHidden()
+            }
+
+            if store.aiProvider == .custom {
+                CardDivider()
+                CardRow(label: L10n.aiBaseURL) {
+                    TextField("https://api.example.com/v1", text: $store.aiBaseURL)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+
+            CardDivider()
+
+            CardRow(label: L10n.aiApiKeyLabel) {
+                HStack(spacing: 4) {
+                    if showAIKey {
+                        TextField("sk-...", text: $store.aiApiKey)
+                            .textFieldStyle(.roundedBorder)
+                    } else {
+                        SecureField("sk-...", text: $store.aiApiKey)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    Button(action: { showAIKey.toggle() }) {
+                        Image(systemName: showAIKey ? "eye.slash" : "eye")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.borderless)
+                }
+                .frame(maxWidth: .infinity)
+            }
+
+            CardDivider()
+
+            CardRow(label: L10n.aiModel) {
+                HStack(spacing: 6) {
+                    modelSelector
+                    Button(action: fetchModels) {
+                        if isFetchingModels {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                        }
+                    }
+                    .buttonStyle(.borderless)
+                    .disabled(store.aiApiKey.isEmpty || isFetchingModels)
+                    .help(L10n.lang == .zh ? "拉取可用模型" : "Fetch available models")
+                }
+            }
+
+            if let fetchError {
+                Text(fetchError)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 6)
+            }
+        }
+    }
+
+    // MARK: - System Prompt Section
+
+    private var systemPromptSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(L10n.aiPrompt)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.secondary)
+                .padding(.leading, 2)
+
+            VStack(spacing: 8) {
+                ForEach(AIPromptPreset.allCases, id: \.self) { preset in
+                    PromptPresetCard(
+                        preset: preset,
+                        selection: $store.aiPromptPreset,
+                        customText: $store.aiPrompt
+                    )
+                }
+            }
+        }
+    }
+
+    // MARK: - Terms Section
+
+    private var termsSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 4) {
+                Text(L10n.aiTermsHeader)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.secondary)
+                Image(systemName: "info.circle")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .onHover { showTermsTooltip = $0 }
+                    .popover(isPresented: $showTermsTooltip, arrowEdge: .trailing) {
+                        Text(L10n.aiTermsTooltip)
+                            .font(.system(size: 12))
+                            .padding(8)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: 240)
+                    }
+            }
+            .padding(.leading, 2)
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    TextField(L10n.aiTermsPlaceholder, text: $newTerm)
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit { addTerm() }
+                    Button(L10n.aiTermsAdd) { addTerm() }
+                        .disabled(newTerm.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+
+                if !store.aiTerms.isEmpty {
+                    FlowLayout(spacing: 8) {
+                        ForEach(store.aiTerms, id: \.self) { term in
+                            TermTag(text: term) {
+                                store.aiTerms.removeAll { $0 == term }
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color(nsColor: .controlBackgroundColor))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color(nsColor: .separatorColor).opacity(0.5), lineWidth: 0.5)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 10))
         }
     }
 
@@ -1072,6 +1109,157 @@ struct FlowLayout: Layout {
             x += size.width + spacing
         }
         return (CGSize(width: width, height: y + rowHeight), positions)
+    }
+}
+
+// MARK: - Prompt Preset Card
+
+struct PromptPresetCard: View {
+    let preset: AIPromptPreset
+    @Binding var selection: AIPromptPreset
+    @Binding var customText: String
+    @State private var isExpanded: Bool
+    @State private var copied: Bool = false
+
+    init(preset: AIPromptPreset, selection: Binding<AIPromptPreset>, customText: Binding<String>) {
+        self.preset = preset
+        self._selection = selection
+        self._customText = customText
+        // Open the card initially if it's the active preset so the user sees the prompt.
+        self._isExpanded = State(initialValue: selection.wrappedValue == preset)
+    }
+
+    private var isSelected: Bool { selection == preset }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header row — split into two buttons so the chevron only toggles
+            // expansion and doesn't also change the selection.
+            HStack(spacing: 8) {
+                Button(action: handleBodyTap) {
+                    HStack(spacing: 8) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(preset.displayName)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.primary)
+                            Text(preset.summary)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 0)
+                        if isSelected {
+                            Text(L10n.modelActive)
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                                .fontWeight(.medium)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                Button(action: toggleExpansion) {
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 20, height: 20)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(12)
+
+            if isExpanded {
+                Divider()
+                expandedBody
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color(nsColor: .controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(
+                    isSelected ? Color.orange.opacity(0.5) : Color(nsColor: .separatorColor).opacity(0.5),
+                    lineWidth: isSelected ? 1.5 : 0.5
+                )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+
+    @ViewBuilder
+    private var expandedBody: some View {
+        if preset == .custom {
+            VStack(alignment: .leading, spacing: 6) {
+                TextEditor(text: $customText)
+                    .font(.system(size: 11, design: .monospaced))
+                    .frame(minHeight: 140)
+                    .scrollContentBackground(.hidden)
+                    .padding(6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.black.opacity(0.08))
+                    )
+                Text(L10n.aiPromptPlaceholder)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(12)
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                ScrollView {
+                    Text(preset.promptText)
+                        .font(.system(size: 11, design: .monospaced))
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(10)
+                }
+                .frame(maxHeight: 200)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color.black.opacity(0.08))
+                )
+
+                HStack {
+                    Spacer()
+                    Button(action: copyPrompt) {
+                        Label(
+                            copied ? L10n.aiPromptCopied : L10n.aiPromptCopy,
+                            systemImage: copied ? "checkmark" : "doc.on.doc"
+                        )
+                        .font(.caption)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+            }
+            .padding(12)
+        }
+    }
+
+    private func copyPrompt() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(preset.promptText, forType: .string)
+        withAnimation { copied = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            withAnimation { copied = false }
+        }
+    }
+
+    /// Tap on the body area selects the preset (and opens it on first selection).
+    private func handleBodyTap() {
+        if isSelected {
+            withAnimation(.easeInOut(duration: 0.18)) { isExpanded.toggle() }
+        } else {
+            selection = preset
+            withAnimation(.easeInOut(duration: 0.18)) { isExpanded = true }
+        }
+    }
+
+    /// Tap on the chevron only toggles expansion — selection is unaffected.
+    private func toggleExpansion() {
+        withAnimation(.easeInOut(duration: 0.18)) { isExpanded.toggle() }
     }
 }
 
