@@ -18,6 +18,7 @@
 		991C968E71E666F1159E8C71 /* AIProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DCE7F0A96A0438FE4AF3CE6 /* AIProcessor.swift */; };
 		9B8F341DBE6F62081F7EEF0D /* OverlayWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BE3935D1F280E62F01B78CB /* OverlayWindow.swift */; };
 		B21F5070166BA1B9A8A1C5D4 /* SherpaOnnx.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDF4CAE0F9B3738E86B54F0 /* SherpaOnnx.swift */; };
+		B2B343DD954C000364E8F0E8 /* LocalLLMEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A28163A3B7124866313C148 /* LocalLLMEngine.swift */; };
 		BA526C4531AEAAC821656054 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 710DDCD36DDB21123243F33D /* SettingsView.swift */; };
 		BB4A38874D6DCE7CB5023EFF /* start1.wav in Resources */ = {isa = PBXBuildFile; fileRef = E89B06A74E01E5759D5F63BF /* start1.wav */; };
 		BED19BE3FB8E8BC8024EF312 /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F122D7DBD16D89B70DFBAA73 /* SettingsStore.swift */; };
@@ -32,6 +33,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		1A28163A3B7124866313C148 /* LocalLLMEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalLLMEngine.swift; sourceTree = "<group>"; };
 		1BE3935D1F280E62F01B78CB /* OverlayWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayWindow.swift; sourceTree = "<group>"; };
 		27AEE5D1B7B3E6F6C8F27D6F /* LocalASREngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalASREngine.swift; sourceTree = "<group>"; };
 		30F0F85D62EA9D1962EB6C99 /* AudioEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioEngine.swift; sourceTree = "<group>"; };
@@ -112,6 +114,7 @@
 				959FBD13DCAB2732250D480A /* KeyMonitor.swift */,
 				B8D90D995FE20B7DF3183A7D /* LLMModelManager.swift */,
 				27AEE5D1B7B3E6F6C8F27D6F /* LocalASREngine.swift */,
+				1A28163A3B7124866313C148 /* LocalLLMEngine.swift */,
 				FF3A17183EA7E01926E0C605 /* ModelManager.swift */,
 				1BE3935D1F280E62F01B78CB /* OverlayWindow.swift */,
 				F122D7DBD16D89B70DFBAA73 /* SettingsStore.swift */,
@@ -227,6 +230,7 @@
 				973A8F97F8F4D65FBE2BDDC0 /* KeyMonitor.swift in Sources */,
 				D9E95F70C08F91843B4D8457 /* LLMModelManager.swift in Sources */,
 				D8AAB311142A098B138112B5 /* LocalASREngine.swift in Sources */,
+				B2B343DD954C000364E8F0E8 /* LocalLLMEngine.swift in Sources */,
 				F671EE587B9E2B96AF13516B /* ModelManager.swift in Sources */,
 				9B8F341DBE6F62081F7EEF0D /* OverlayWindow.swift in Sources */,
 				BED19BE3FB8E8BC8024EF312 /* SettingsStore.swift in Sources */,
