@@ -19,6 +19,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var keyMonitor: KeyMonitor!
     private var audioEngine: AudioEngine!
     private var asrClient: ASRClient!
+    private var localASREngine: LocalASREngine!
+    private var modelManager: ModelManager!
     private var overlayWindow: OverlayWindow!
     private var settingsWindow: NSWindow?
     private var startupWindow: NSWindow?
@@ -121,6 +123,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         audioEngine = AudioEngine()
         asrClient = ASRClient()
+        localASREngine = LocalASREngine()
+        modelManager = ModelManager.shared
         keyMonitor = KeyMonitor()
     }
 
@@ -135,6 +139,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             self?.handleEscCancel()
         }
         keyMonitor.start()
+
+        SettingsStore.shared.$selectedModelId
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] modelId in
+                guard let self, !modelId.isEmpty else { return }
+                if let model = self.modelManager.model(for: modelId),
+                   let path = self.modelManager.modelPath(for: model) {
+                    self.localASREngine.loadModel(model, path: path)
+                }
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Fn key state machine
@@ -185,7 +200,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func cancelRecording() {
         audioEngine.stop()
-        asrClient.disconnect()
+        if SettingsStore.shared.asrMode == .online {
+            asrClient.disconnect()
+        } else {
+            localASREngine.stop()
+        }
         DispatchQueue.main.async {
             if let button = self.statusItem.button {
                 button.image = NSImage(systemSymbolName: "mic", accessibilityDescription: "yapyap")
@@ -196,9 +215,26 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func startRecording() {
         let settings = SettingsStore.shared
-        guard !settings.appKey.isEmpty, !settings.accessKey.isEmpty else {
-            showNotConfiguredAlert()
-            return
+
+        if settings.asrMode == .online {
+            guard !settings.appKey.isEmpty, !settings.accessKey.isEmpty else {
+                showNotConfiguredAlert()
+                return
+            }
+        } else {
+            guard let model = modelManager.model(for: settings.selectedModelId),
+                  let modelPath = modelManager.modelPath(for: model) else {
+                showNotConfiguredLocalAlert()
+                return
+            }
+            // Load model if not already loaded
+            if !localASREngine.isModelLoaded {
+                localASREngine.loadModel(model, path: modelPath)
+            }
+            guard localASREngine.isModelLoaded else {
+                showNotConfiguredLocalAlert()
+                return
+            }
         }
 
         if !TextInjector.checkAccessibility() {
@@ -218,18 +254,29 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             self.overlayWindow.show()
         }
 
-        asrClient.onTextUpdate = { [weak self] text in
+        let textHandler: (String) -> Void = { [weak self] text in
             self?.latestRawText = text
             let processed = TextProcessor.process(text)
             self?.latestProcessedText = processed
             self?.overlayWindow.updateText(processed)
         }
 
-        asrClient.connect()
+        if settings.asrMode == .online {
+            asrClient.onTextUpdate = textHandler
+            asrClient.connect()
 
-        audioEngine.onAudioBuffer = { [weak self] data in
-            self?.asrClient.sendAudio(data: data)
+            audioEngine.onAudioBuffer = { [weak self] data in
+                self?.asrClient.sendAudio(data: data)
+            }
+        } else {
+            localASREngine.onTextUpdate = textHandler
+            localASREngine.start()
+
+            audioEngine.onAudioBuffer = { [weak self] data in
+                self?.localASREngine.feedAudio(data)
+            }
         }
+
         audioEngine.onAudioLevel = { [weak self] level in
             DispatchQueue.main.async {
                 self?.overlayWindow.updateLevel(level)
@@ -247,46 +294,56 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
         }
 
-        // Delay 0.5s before stopping audio to capture trailing speech
+        let settings = SettingsStore.shared
+
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
             guard let self else { return }
             self.audioEngine.stop()
-            self.asrClient.sendLastAudio()
 
-            // Give the server time to process the final audio before disconnecting
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                guard let self else { return }
-                self.asrClient.disconnect()
-
-                let settings = SettingsStore.shared
-                let useAI = settings.aiEnabled && !settings.aiApiKey.isEmpty
-
-                let textToInject = useAI ? self.latestRawText : self.latestProcessedText
-                guard !textToInject.isEmpty else {
-                    self.overlayWindow.hide()
-                    self.recordingMode = .idle
-                    return
+            if settings.asrMode == .online {
+                self.asrClient.sendLastAudio()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                    guard let self else { return }
+                    self.asrClient.disconnect()
+                    self.finalizeText()
                 }
+            } else {
+                self.localASREngine.stop()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+                    guard let self else { return }
+                    self.finalizeText()
+                }
+            }
+        }
+    }
 
-                if useAI {
-                    // AI first, then text processing (punctuation/spacing)
-                    self.overlayWindow.showProcessing()
-                    AIProcessor.process(text: textToInject) { [weak self] corrected in
-                        guard let self else { return }
-                        let finalText = TextProcessor.process(corrected)
-                        self.overlayWindow.updateText(finalText)
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                            TextInjector.update(fullText: finalText)
-                            self.overlayWindow.hide()
-                            self.recordingMode = .idle
-                        }
-                    }
-                } else {
-                    TextInjector.update(fullText: textToInject)
+    private func finalizeText() {
+        let settings = SettingsStore.shared
+        let useAI = settings.aiEnabled && !settings.aiApiKey.isEmpty
+
+        let textToInject = useAI ? self.latestRawText : self.latestProcessedText
+        guard !textToInject.isEmpty else {
+            self.overlayWindow.hide()
+            self.recordingMode = .idle
+            return
+        }
+
+        if useAI {
+            self.overlayWindow.showProcessing()
+            AIProcessor.process(text: textToInject) { [weak self] corrected in
+                guard let self else { return }
+                let finalText = TextProcessor.process(corrected)
+                self.overlayWindow.updateText(finalText)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    TextInjector.update(fullText: finalText)
                     self.overlayWindow.hide()
                     self.recordingMode = .idle
                 }
             }
+        } else {
+            TextInjector.update(fullText: textToInject)
+            self.overlayWindow.hide()
+            self.recordingMode = .idle
         }
     }
 
@@ -295,6 +352,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             let alert = NSAlert()
             alert.messageText = L10n.notConfiguredTitle
             alert.informativeText = L10n.notConfiguredMessage
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: L10n.openSettings)
+            alert.addButton(withTitle: L10n.cancel)
+            if alert.runModal() == .alertFirstButtonReturn {
+                self.openSettings()
+            }
+        }
+    }
+
+    private func showNotConfiguredLocalAlert() {
+        DispatchQueue.main.async {
+            let alert = NSAlert()
+            alert.messageText = L10n.notConfiguredLocalTitle
+            alert.informativeText = L10n.notConfiguredLocalMessage
             alert.alertStyle = .warning
             alert.addButton(withTitle: L10n.openSettings)
             alert.addButton(withTitle: L10n.cancel)

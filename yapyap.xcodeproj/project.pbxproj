@@ -21,6 +21,7 @@
 		BB4A38874D6DCE7CB5023EFF /* start1.wav in Resources */ = {isa = PBXBuildFile; fileRef = E89B06A74E01E5759D5F63BF /* start1.wav */; };
 		BED19BE3FB8E8BC8024EF312 /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F122D7DBD16D89B70DFBAA73 /* SettingsStore.swift */; };
 		D5E0EC7E63DDD453FC31DE2F /* SoundFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5567FD45C68816085CCFAEB /* SoundFeedback.swift */; };
+		D8AAB311142A098B138112B5 /* LocalASREngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27AEE5D1B7B3E6F6C8F27D6F /* LocalASREngine.swift */; };
 		ED426A2B03CEEA4EB6A44212 /* TextProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F605C96EF7F32A1F67978EBA /* TextProcessor.swift */; };
 		F2166F3510E0E89A2A4E3071 /* ASRClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AF5C67BF95B1B58BEF6F7F9 /* ASRClient.swift */; };
 		F4FB3D9BFBFAD11831BD23D3 /* start2.wav in Resources */ = {isa = PBXBuildFile; fileRef = 6AF7A65A9F788B24303A842C /* start2.wav */; };
@@ -29,6 +30,7 @@
 
 /* Begin PBXFileReference section */
 		1BE3935D1F280E62F01B78CB /* OverlayWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayWindow.swift; sourceTree = "<group>"; };
+		27AEE5D1B7B3E6F6C8F27D6F /* LocalASREngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalASREngine.swift; sourceTree = "<group>"; };
 		30F0F85D62EA9D1962EB6C99 /* AudioEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioEngine.swift; sourceTree = "<group>"; };
 		3AF5C67BF95B1B58BEF6F7F9 /* ASRClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ASRClient.swift; sourceTree = "<group>"; };
 		3DCE7F0A96A0438FE4AF3CE6 /* AIProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProcessor.swift; sourceTree = "<group>"; };
@@ -102,6 +104,7 @@
 				3AF5C67BF95B1B58BEF6F7F9 /* ASRClient.swift */,
 				30F0F85D62EA9D1962EB6C99 /* AudioEngine.swift */,
 				959FBD13DCAB2732250D480A /* KeyMonitor.swift */,
+				27AEE5D1B7B3E6F6C8F27D6F /* LocalASREngine.swift */,
 				FF3A17183EA7E01926E0C605 /* ModelManager.swift */,
 				1BE3935D1F280E62F01B78CB /* OverlayWindow.swift */,
 				F122D7DBD16D89B70DFBAA73 /* SettingsStore.swift */,
@@ -210,6 +213,7 @@
 				345410B1DFC3F963A8CAD8A5 /* App.swift in Sources */,
 				0BE64561FFFA12B91BE17D6F /* AudioEngine.swift in Sources */,
 				973A8F97F8F4D65FBE2BDDC0 /* KeyMonitor.swift in Sources */,
+				D8AAB311142A098B138112B5 /* LocalASREngine.swift in Sources */,
 				F671EE587B9E2B96AF13516B /* ModelManager.swift in Sources */,
 				9B8F341DBE6F62081F7EEF0D /* OverlayWindow.swift in Sources */,
 				BED19BE3FB8E8BC8024EF312 /* SettingsStore.swift in Sources */,
