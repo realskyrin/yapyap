@@ -57,6 +57,16 @@ class LLMModelManager: ObservableObject {
         return FileManager.default.fileExists(atPath: cacheBase.path) ? cacheBase : nil
     }
 
+    /// Directory where MLX's default HubApi materializes the snapshot (uses
+    /// `.cachesDirectory` as `downloadBase`, matching `MLXLMCommon.defaultHubApi`).
+    /// Passing this directly to `ModelConfiguration(directory:)` skips HubApi.snapshot()
+    /// and therefore all HuggingFace HTTP requests — load succeeds even if the Hub is
+    /// returning errors (e.g. 500s) for an already-downloaded model.
+    private static func materializedModelDirectory() -> URL {
+        let downloadBase = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        return downloadBase.appending(component: "models").appending(component: Self.modelId)
+    }
+
     // MARK: - Download & Load
 
     func downloadAndLoad() {
@@ -160,16 +170,20 @@ class LLMModelManager: ObservableObject {
         guard isDownloaded, modelContainer == nil, !isLoading else { return }
 
         isLoading = true
+        error = nil
         loadTask = Task { @MainActor in
             do {
-                let config = ModelConfiguration(id: Self.modelId)
+                // Use the materialized directory so MLX skips HubApi.snapshot() and
+                // never touches HuggingFace. Prevents transient Hub 500s from breaking
+                // loads of an already-downloaded model.
+                let config = ModelConfiguration(directory: Self.materializedModelDirectory())
                 let container = try await LLMModelFactory.shared.loadContainer(
                     configuration: config
                 ) { _ in }
 
                 self.modelContainer = container
                 self.isLoading = false
-                logger.info("Model loaded into memory")
+                logger.info("Model loaded from local directory")
             } catch {
                 logger.error("Model load failed: \(error.localizedDescription)")
                 self.error = error.localizedDescription
