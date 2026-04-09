@@ -158,6 +158,32 @@ enum L10n {
     static var launchApp: String { lang == .zh ? "启动应用" : "Launch App" }
     static var permissionGranted: String { lang == .zh ? "已授权" : "Granted" }
     static var permissionNotGranted: String { lang == .zh ? "未授权 — 点击前往设置" : "Not granted — click to open Settings" }
+
+    // Status bar
+    static var statusBarVoiceOnlineName: String { lang == .zh ? "豆包" : "Doubao" }
+    static var statusBarVoiceOnlineDesc: String {
+        lang == .zh ? "在线识别，速度快，需配置 App Key" : "Cloud ASR, fast, requires App Key"
+    }
+    static var statusBarPostOff: String { lang == .zh ? "未启用" : "Off" }
+    static var statusBarPostOffDesc: String {
+        lang == .zh ? "不对识别结果做任何加工" : "Use raw transcription as-is"
+    }
+    static var statusBarPostOnline: String { lang == .zh ? "在线" : "Online" }
+    static var statusBarPostLocalName: String { "Qwen3 4B Instruct" }
+    static var statusBarPostLocalDesc: String {
+        lang == .zh ? "本地模型，离线运行" : "Local model, runs offline"
+    }
+    static var statusBarModelSenseVoiceDesc: String {
+        lang == .zh
+            ? "非常快速。支持中文、英语、日语、韩语、粤语"
+            : "Very fast. Supports Chinese, English, Japanese, Korean, Cantonese"
+    }
+    static var statusBarModelWhisperSmallDesc: String {
+        lang == .zh ? "99 种语言，速度较快" : "99 languages, fast"
+    }
+    static var statusBarModelWhisperMediumDesc: String {
+        lang == .zh ? "99 种语言，精度更高" : "99 languages, higher accuracy"
+    }
 }
 
 enum AIProvider: String, CaseIterable {
