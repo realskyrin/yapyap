@@ -45,6 +45,15 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
 
+      - name: Cache sherpa-onnx frameworks
+        uses: actions/cache@v4
+        with:
+          path: Frameworks
+          key: sherpa-onnx-${{ hashFiles('scripts/setup-sherpa-onnx.sh') }}
+
+      - name: Fetch sherpa-onnx frameworks
+        run: bash scripts/setup-sherpa-onnx.sh
+
       - name: Generate Xcode project
         run: xcodegen generate
 
