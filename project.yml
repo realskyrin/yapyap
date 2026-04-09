@@ -46,5 +46,7 @@ targets:
         embed: false
       - package: mlx-swift-lm
         product: MLXLLM
+      - package: mlx-swift-lm
+        product: MLXLMCommon
     entitlements:
       path: yapyap/Resources/yapyap.entitlements
