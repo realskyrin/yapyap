@@ -73,8 +73,8 @@ enum L10n {
     static var aiTermsAdd: String { lang == .zh ? "添加" : "Add" }
     static var aiTermsTooltip: String {
         lang == .zh
-            ? "添加常用术语，AI 会在后处理时优先使用这些词（例如：Claude Code, /clear）"
-            : "Add terms that AI should preserve during post-processing (e.g. Claude Code, /clear)"
+            ? "添加常用术语，AI 会在后处理时优先使用这些词（例如：口语「cloud code」→「Claude Code」，「slash new」→「/new」）"
+            : "Add terms that AI should preserve during post-processing (e.g. spoken \"cloud code\" → \"Claude Code\", \"slash new\" → \"/new\")"
     }
 
     // Sidebar tabs
