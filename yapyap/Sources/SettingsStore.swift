@@ -184,6 +184,9 @@ enum L10n {
     static var statusBarModelWhisperMediumDesc: String {
         lang == .zh ? "99 种语言，精度更高" : "99 languages, higher accuracy"
     }
+    static var statusBarPostOnlineHint: String {
+        lang == .zh ? "请在后处理标签中配置" : "Configure in Post-Processing tab"
+    }
 }
 
 enum AIProvider: String, CaseIterable {

@@ -1554,7 +1554,7 @@ struct SettingsStatusBar: View {
 
     private var onlineRowDescription: String {
         if store.aiModel.isEmpty {
-            return L10n.lang == .zh ? "请在后处理标签中配置" : "Configure in Post-Processing tab"
+            return L10n.statusBarPostOnlineHint
         }
         return store.aiModel
     }
