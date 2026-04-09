@@ -8,7 +8,7 @@ private let logger = Logger(subsystem: "cn.skyrin.yapyap", category: "LLMModelMa
 class LLMModelManager: ObservableObject {
     static let shared = LLMModelManager()
 
-    static let modelId = "mlx-community/Qwen3-4B-Instruct-4bit"
+    static let modelId = "mlx-community/Qwen3-4B-Instruct-2507-4bit"
 
     @Published var downloadProgress: Double = 0
     @Published var isDownloading: Bool = false
