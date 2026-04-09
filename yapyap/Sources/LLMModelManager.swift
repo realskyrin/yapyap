@@ -19,6 +19,10 @@ class LLMModelManager: ObservableObject {
     private(set) var modelContainer: ModelContainer?
 
     private var loadTask: Task<Void, Never>?
+    private var diskPollTimer: Timer?
+
+    // Approximate total download size in bytes for Qwen3-4B-Instruct-2507-4bit (~2.1 GB)
+    private let expectedTotalBytes: Int64 = 2_252_000_000
 
     private init() {
         checkDownloadedState()
@@ -58,6 +62,8 @@ class LLMModelManager: ObservableObject {
     func downloadAndLoad() {
         guard !isDownloading, !isLoading else { return }
 
+        startDiskPolling()
+
         loadTask = Task { @MainActor in
             isDownloading = true
             downloadProgress = 0
@@ -70,21 +76,21 @@ class LLMModelManager: ObservableObject {
 
                 let container = try await LLMModelFactory.shared.loadContainer(
                     configuration: config
-                ) { [weak self] progress in
-                    Task { @MainActor in
-                        self?.downloadProgress = progress.fractionCompleted
-                    }
+                ) { _ in
+                    // Per-file callback ignored; we poll disk instead
                 }
 
                 self.modelContainer = container
                 self.isDownloaded = true
                 self.isDownloading = false
                 self.downloadProgress = 1.0
+                self.stopDiskPolling()
                 logger.info("Model loaded successfully")
             } catch {
                 logger.error("Model load failed: \(error.localizedDescription)")
                 self.error = error.localizedDescription
                 self.isDownloading = false
+                self.stopDiskPolling()
             }
         }
     }
@@ -92,9 +98,49 @@ class LLMModelManager: ObservableObject {
     func cancelDownload() {
         loadTask?.cancel()
         loadTask = nil
+        stopDiskPolling()
         isDownloading = false
         isLoading = false
         downloadProgress = 0
+    }
+
+    // MARK: - Disk polling for smooth progress
+
+    private func startDiskPolling() {
+        stopDiskPolling()
+        diskPollTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            let bytes = self.currentDiskBytes()
+            let progress = min(Double(bytes) / Double(self.expectedTotalBytes), 0.99)
+            DispatchQueue.main.async {
+                self.downloadProgress = progress
+            }
+        }
+    }
+
+    private func stopDiskPolling() {
+        diskPollTimer?.invalidate()
+        diskPollTimer = nil
+    }
+
+    private func currentDiskBytes() -> Int64 {
+        let modelDirName = Self.modelId.replacingOccurrences(of: "/", with: "--")
+        let cacheDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".cache/huggingface/hub")
+            .appendingPathComponent("models--\(modelDirName)")
+        guard let enumerator = FileManager.default.enumerator(
+            at: cacheDir,
+            includingPropertiesForKeys: [.fileSizeKey],
+            options: [.skipsHiddenFiles]
+        ) else { return 0 }
+
+        var total: Int64 = 0
+        for case let url as URL in enumerator {
+            if let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize {
+                total += Int64(size)
+            }
+        }
+        return total
     }
 
     func delete() {
