@@ -58,7 +58,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             self.setupBindings()
         }
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 680, height: 520),
+            contentRect: NSRect(x: 0, y: 0, width: 680, height: 556),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -380,7 +380,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             window.makeKeyAndOrderFront(nil)
         } else {
             let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 680, height: 520),
+                contentRect: NSRect(x: 0, y: 0, width: 680, height: 556),
                 styleMask: [.titled, .closable],
                 backing: .buffered,
                 defer: false
