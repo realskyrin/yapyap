@@ -205,100 +205,100 @@ class OverlayWindow {
     func updateText(_ text: String) {
         guard !text.isEmpty else { return }
         currentText = text
-        DispatchQueue.main.async { [weak self] in
-            guard let self,
-                  let textField = self.bubbleTextField,
-                  let bubbleContainer = self.bubbleContainerView,
-                  let parentView = self.containerView,
-                  let capsule = self.capsuleView,
-                  let win = self.window else { return }
 
-            let maxTextWidth = self.bubbleMaxWidth - self.bubblePaddingH * 2
-            let font = textField.font ?? NSFont.systemFont(ofSize: 13, weight: .medium)
+        // NOTE: This method must run synchronously on the main thread.
+        // All callers already dispatch to main. An extra DispatchQueue.main.async
+        // here would cause the final inference text update to race with hide(),
+        // resulting in the last character never appearing in the bubble.
 
-            // Measure text size
-            let attrs: [NSAttributedString.Key: Any] = [.font: font]
-            let singleLineWidth = ceil((text as NSString).size(withAttributes: attrs).width)
+        guard let textField = self.bubbleTextField,
+              let bubbleContainer = self.bubbleContainerView,
+              let parentView = self.containerView,
+              let capsule = self.capsuleView,
+              let win = self.window else { return }
 
-            let needsWrap = singleLineWidth > maxTextWidth
-            let contentWidth: CGFloat
-            let textHeight: CGFloat
+        let maxTextWidth = self.bubbleMaxWidth - self.bubblePaddingH * 2
+        let font = textField.font ?? NSFont.systemFont(ofSize: 13, weight: .medium)
 
-            if needsWrap {
-                contentWidth = maxTextWidth
-                let boundingRect = (text as NSString).boundingRect(
-                    with: NSSize(width: maxTextWidth, height: .greatestFiniteMagnitude),
-                    options: [.usesLineFragmentOrigin, .usesFontLeading],
-                    attributes: attrs
-                )
-                textHeight = ceil(boundingRect.height)
-            } else {
-                contentWidth = singleLineWidth
-                textHeight = ceil((text as NSString).size(withAttributes: attrs).height)
+        // Measure text size
+        let attrs: [NSAttributedString.Key: Any] = [.font: font]
+        let singleLineWidth = ceil((text as NSString).size(withAttributes: attrs).width)
+
+        let needsWrap = singleLineWidth > maxTextWidth
+        let contentWidth: CGFloat
+        let textHeight: CGFloat
+
+        if needsWrap {
+            contentWidth = maxTextWidth
+            let boundingRect = (text as NSString).boundingRect(
+                with: NSSize(width: maxTextWidth, height: .greatestFiniteMagnitude),
+                options: [.usesLineFragmentOrigin, .usesFontLeading],
+                attributes: attrs
+            )
+            textHeight = ceil(boundingRect.height)
+        } else {
+            contentWidth = singleLineWidth
+            textHeight = ceil((text as NSString).size(withAttributes: attrs).height)
+        }
+
+        let bubbleWidth = min(contentWidth + self.bubblePaddingH * 2, self.bubbleMaxWidth)
+        let bubbleHeight = max(self.bubbleMinHeight, textHeight + self.bubblePaddingV * 2)
+        let bubbleX = (parentView.bounds.width - bubbleWidth) / 2
+        let targetBubbleFrame = NSRect(x: bubbleX, y: 0, width: bubbleWidth, height: bubbleHeight)
+        let capsuleX = (parentView.bounds.width - self.capsuleWidthCompact) / 2
+        let targetCapsuleFrame = NSRect(x: capsuleX, y: bubbleHeight + self.bubbleGap,
+                                        width: self.capsuleWidthCompact, height: self.capsuleHeight)
+        let totalHeight = bubbleHeight + self.bubbleGap + self.capsuleHeight + 20
+        var winFrame = win.frame
+        winFrame.size.height = totalHeight
+        winFrame.origin.y = self.bottomOffset
+
+        // First appearance: set frames instantly, then fade in container + text together
+        let isFirstAppearance = bubbleContainer.alphaValue < 1
+
+        if isFirstAppearance {
+            // Set layout immediately (no animation) so text is never clipped
+            bubbleContainer.frame = targetBubbleFrame
+            textField.frame = NSRect(
+                x: self.bubblePaddingH, y: self.bubblePaddingV,
+                width: bubbleWidth - self.bubblePaddingH * 2,
+                height: bubbleHeight - self.bubblePaddingV * 2
+            )
+            capsule.frame = targetCapsuleFrame
+            win.setFrame(winFrame, display: true)
+            textField.stringValue = text
+
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.2
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                bubbleContainer.animator().alphaValue = 1
+                textField.animator().alphaValue = 1
             }
+        } else {
+            // Subsequent updates: resize layout instantly, then set text
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            bubbleContainer.frame = targetBubbleFrame
+            textField.frame = NSRect(
+                x: self.bubblePaddingH, y: self.bubblePaddingV,
+                width: bubbleWidth - self.bubblePaddingH * 2,
+                height: bubbleHeight - self.bubblePaddingV * 2
+            )
+            capsule.frame = targetCapsuleFrame
+            CATransaction.commit()
 
-            let bubbleWidth = min(contentWidth + self.bubblePaddingH * 2, self.bubbleMaxWidth)
-            let bubbleHeight = max(self.bubbleMinHeight, textHeight + self.bubblePaddingV * 2)
-            let bubbleX = (parentView.bounds.width - bubbleWidth) / 2
-            let targetBubbleFrame = NSRect(x: bubbleX, y: 0, width: bubbleWidth, height: bubbleHeight)
-            let capsuleX = (parentView.bounds.width - self.capsuleWidthCompact) / 2
-            let targetCapsuleFrame = NSRect(x: capsuleX, y: bubbleHeight + self.bubbleGap,
-                                            width: self.capsuleWidthCompact, height: self.capsuleHeight)
-            let totalHeight = bubbleHeight + self.bubbleGap + self.capsuleHeight + 20
-            var winFrame = win.frame
-            winFrame.size.height = totalHeight
-            winFrame.origin.y = self.bottomOffset
+            textField.stringValue = text
 
-            // First appearance: set frames instantly, then fade in container + text together
-            let isFirstAppearance = bubbleContainer.alphaValue < 1
-
-            if isFirstAppearance {
-                // Set layout immediately (no animation) so text is never clipped
-                bubbleContainer.frame = targetBubbleFrame
-                textField.frame = NSRect(
-                    x: self.bubblePaddingH, y: self.bubblePaddingV,
-                    width: bubbleWidth - self.bubblePaddingH * 2,
-                    height: bubbleHeight - self.bubblePaddingV * 2
-                )
-                capsule.frame = targetCapsuleFrame
-                win.setFrame(winFrame, display: true)
-                textField.stringValue = text
-
-                // Fade in container and text together (Bug 1 fix)
-                NSAnimationContext.runAnimationGroup { ctx in
-                    ctx.duration = 0.2
-                    ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                    bubbleContainer.animator().alphaValue = 1
-                    textField.animator().alphaValue = 1
-                }
-            } else {
-                // Subsequent updates: resize layout instantly, then set text (Bug 2 fix)
-                // All layout changes in one pass — no animated frame, no clipping gap
-                CATransaction.begin()
-                CATransaction.setDisableActions(true)
-                bubbleContainer.frame = targetBubbleFrame
-                textField.frame = NSRect(
-                    x: self.bubblePaddingH, y: self.bubblePaddingV,
-                    width: bubbleWidth - self.bubblePaddingH * 2,
-                    height: bubbleHeight - self.bubblePaddingV * 2
-                )
-                capsule.frame = targetCapsuleFrame
-                CATransaction.commit()
-
-                textField.stringValue = text
-
-                // Animate window frame for smooth visual growth (Bug 3 fix)
-                NSAnimationContext.runAnimationGroup { ctx in
-                    ctx.duration = 0.18
-                    ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.25, 1.0, 0.5, 1.0)
-                    win.animator().setFrame(winFrame, display: true)
-                }
+            NSAnimationContext.runAnimationGroup { ctx in
+                ctx.duration = 0.18
+                ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.25, 1.0, 0.5, 1.0)
+                win.animator().setFrame(winFrame, display: true)
             }
+        }
 
-            // Keep action buttons aligned with capsule
-            if self.isClickMode {
-                self.layoutActionButtons()
-            }
+        // Keep action buttons aligned with capsule
+        if self.isClickMode {
+            self.layoutActionButtons()
         }
     }
 
