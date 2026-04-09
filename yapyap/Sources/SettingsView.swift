@@ -635,6 +635,7 @@ struct TextProcessingTabView: View {
 
 struct AITabView: View {
     @ObservedObject private var store = SettingsStore.shared
+    @ObservedObject private var llmManager = LLMModelManager.shared
     @State private var showAIKey = false
     @State private var fetchedModels: [String] = []
     @State private var isFetchingModels = false
@@ -653,10 +654,99 @@ struct AITabView: View {
                         .labelsHidden()
                         .toggleStyle(.switch)
                 }
+            }
 
-                if store.aiEnabled {
-                    CardDivider()
+            if store.aiEnabled {
+                // Local model section
+                SectionCard(header: L10n.localAIHeader) {
+                    CardRow(label: L10n.useLocalAI) {
+                        Toggle("", isOn: $store.useLocalAI)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                    }
 
+                    if store.useLocalAI {
+                        CardDivider()
+                        // Model card
+                        HStack(alignment: .top) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack(spacing: 8) {
+                                    Text(L10n.localAIModelName)
+                                        .font(.system(size: 13, weight: .medium))
+                                    Text(L10n.localAIModelSize)
+                                        .font(.caption)
+                                        .foregroundStyle(.tertiary)
+                                }
+                                if llmManager.isDownloading {
+                                    Text(L10n.localAIDownloading)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                } else if llmManager.isLoading {
+                                    Text(L10n.localAILoading)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                } else if llmManager.isDownloaded {
+                                    Text(L10n.localAIReady)
+                                        .font(.caption)
+                                        .foregroundStyle(.green)
+                                } else {
+                                    Text(L10n.localAINotDownloaded)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+
+                            Spacer()
+
+                            if llmManager.isDownloading {
+                                Button(L10n.cancelDownload) {
+                                    llmManager.cancelDownload()
+                                }
+                                .controlSize(.small)
+                            } else if llmManager.isDownloaded {
+                                Button(action: { llmManager.delete() }) {
+                                    Image(systemName: "trash")
+                                        .foregroundStyle(.red.opacity(0.7))
+                                }
+                                .buttonStyle(.borderless)
+                            } else {
+                                Button(L10n.modelDownload) {
+                                    llmManager.downloadAndLoad()
+                                }
+                                .controlSize(.small)
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+
+                        // Download progress
+                        if llmManager.isDownloading {
+                            VStack(spacing: 4) {
+                                ProgressView(value: llmManager.downloadProgress)
+                                    .progressViewStyle(.linear)
+                                HStack {
+                                    Text("\(Int(llmManager.downloadProgress * 100))%")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                    Spacer()
+                                }
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.bottom, 10)
+                        }
+
+                        // Error display
+                        if let error = llmManager.error {
+                            Text(error)
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                                .padding(.horizontal, 12)
+                                .padding(.bottom, 8)
+                        }
+                    }
+                }
+
+                SectionCard(header: L10n.aiHeader) {
                     // Provider
                     CardRow(label: L10n.aiProviderLabel) {
                         Picker("", selection: $store.aiProvider) {
@@ -725,9 +815,9 @@ struct AITabView: View {
                             .padding(.bottom, 6)
                     }
                 }
-            }
+                .opacity(store.useLocalAI ? 0.5 : 1.0)
+                .disabled(store.useLocalAI)
 
-            if store.aiEnabled {
                 SectionCard(header: L10n.aiPrompt) {
                     VStack(alignment: .leading, spacing: 4) {
                         TextEditor(text: $store.aiPrompt)
@@ -740,6 +830,8 @@ struct AITabView: View {
                     }
                     .padding(12)
                 }
+                .opacity(store.useLocalAI ? 0.5 : 1.0)
+                .disabled(store.useLocalAI)
 
                 // Terms section
                 VStack(alignment: .leading, spacing: 6) {
@@ -792,6 +884,8 @@ struct AITabView: View {
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
+                .opacity(store.useLocalAI ? 0.5 : 1.0)
+                .disabled(store.useLocalAI)
             }
         }
     }
