@@ -28,5 +28,16 @@ targets:
         PRODUCT_NAME: yapyap
         COMBINE_HIDPI_IMAGES: true
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_OBJC_BRIDGING_HEADER: yapyap/Sources/SherpaOnnx-Bridging-Header.h
+        HEADER_SEARCH_PATHS:
+          - "$(PROJECT_DIR)/Frameworks/sherpa-onnx.xcframework/macos-arm64_x86_64/Headers"
+        LIBRARY_SEARCH_PATHS:
+          - "$(PROJECT_DIR)/Frameworks"
+        OTHER_LDFLAGS:
+          - "-lc++"
+          - "-lonnxruntime"
+    dependencies:
+      - framework: Frameworks/sherpa-onnx.xcframework
+        embed: false
     entitlements:
       path: yapyap/Resources/yapyap.entitlements

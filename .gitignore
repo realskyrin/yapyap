@@ -22,3 +22,6 @@ build/
 
 # log
 *.log
+
+# Frameworks (downloaded via scripts/setup-sherpa-onnx.sh)
+Frameworks/
