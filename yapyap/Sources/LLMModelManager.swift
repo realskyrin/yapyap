@@ -5,6 +5,7 @@ import os.log
 
 private let logger = Logger(subsystem: "cn.skyrin.yapyap", category: "LLMModelManager")
 
+@MainActor
 class LLMModelManager: ObservableObject {
     static let shared = LLMModelManager()
 
@@ -27,7 +28,22 @@ class LLMModelManager: ObservableObject {
     // MARK: - State
 
     private func checkDownloadedState() {
-        isDownloaded = hubCacheDirectory() != nil
+        isDownloaded = hasCompleteDownload()
+    }
+
+    /// Check if a complete model snapshot exists in the HuggingFace cache.
+    /// A partial/interrupted download creates the directory but won't have a config.json in snapshots.
+    private func hasCompleteDownload() -> Bool {
+        let modelDirName = Self.modelId.replacingOccurrences(of: "/", with: "--")
+        let snapshotsDir = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".cache/huggingface/hub")
+            .appendingPathComponent("models--\(modelDirName)")
+            .appendingPathComponent("snapshots")
+        guard let snapshots = try? FileManager.default.contentsOfDirectory(
+            at: snapshotsDir, includingPropertiesForKeys: nil) else { return false }
+        return snapshots.contains {
+            FileManager.default.fileExists(atPath: $0.appendingPathComponent("config.json").path)
+        }
     }
 
     private func hubCacheDirectory() -> URL? {
@@ -43,7 +59,7 @@ class LLMModelManager: ObservableObject {
     func downloadAndLoad() {
         guard !isDownloading, !isLoading else { return }
 
-        loadTask = Task { @MainActor in
+        loadTask = Task {
             isDownloading = true
             downloadProgress = 0
             error = nil
@@ -78,6 +94,7 @@ class LLMModelManager: ObservableObject {
         loadTask?.cancel()
         loadTask = nil
         isDownloading = false
+        isLoading = false
         downloadProgress = 0
     }
 
@@ -93,11 +110,12 @@ class LLMModelManager: ObservableObject {
         error = nil
     }
 
+    /// Load model into memory if already downloaded but not loaded (e.g. after app restart)
     func ensureLoaded() {
         guard isDownloaded, modelContainer == nil, !isLoading else { return }
 
         isLoading = true
-        loadTask = Task { @MainActor in
+        loadTask = Task {
             do {
                 let config = ModelConfiguration(id: Self.modelId)
                 let container = try await LLMModelFactory.shared.loadContainer(

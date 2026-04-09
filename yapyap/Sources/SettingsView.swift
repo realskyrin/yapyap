@@ -663,6 +663,9 @@ struct AITabView: View {
                         Toggle("", isOn: $store.useLocalAI)
                             .labelsHidden()
                             .toggleStyle(.switch)
+                            .onChange(of: store.useLocalAI) { _, enabled in
+                                if enabled { llmManager.ensureLoaded() }
+                            }
                     }
 
                     if store.useLocalAI {
@@ -746,7 +749,7 @@ struct AITabView: View {
                     }
                 }
 
-                SectionCard(header: L10n.aiHeader) {
+                SectionCard(header: L10n.aiOnlineHeader) {
                     // Provider
                     CardRow(label: L10n.aiProviderLabel) {
                         Picker("", selection: $store.aiProvider) {

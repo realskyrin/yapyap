@@ -58,6 +58,7 @@ enum L10n {
 
     // AI Post-Processing
     static var aiHeader: String { lang == .zh ? "后处理" : "Post-Processing" }
+    static var aiOnlineHeader: String { lang == .zh ? "在线服务" : "Online Provider" }
     static var aiEnabled: String { lang == .zh ? "启用 AI 文本纠正" : "Enable AI text correction" }
     static var aiBaseURL: String { lang == .zh ? "API 地址" : "API Base URL" }
     static var aiModel: String { lang == .zh ? "模型" : "Model" }

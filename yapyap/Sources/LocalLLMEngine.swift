@@ -28,10 +28,10 @@ enum LocalLLMEngine {
             systemPrompt += "\n\nIMPORTANT: The following terms/proper nouns must be used exactly as written when they appear in the text. Speech recognition may have misrecognized them:\n\(termsList)"
         }
 
-        // Disable Qwen3 thinking mode for direct correction
-        systemPrompt += "\n/no_think"
-
         logger.info("Local LLM processing: \(text.prefix(50))...")
+
+        // Append /no_think to user message to disable Qwen3 thinking mode
+        let userMessage = text + " /no_think"
 
         Task {
             do {
@@ -44,7 +44,7 @@ enum LocalLLMEngine {
                     )
                 )
 
-                let result = try await session.respond(to: text)
+                let result = try await session.respond(to: userMessage)
                 let corrected = result.trimmingCharacters(in: .whitespacesAndNewlines)
                 logger.info("Local LLM result: \(corrected.prefix(50))...")
 
