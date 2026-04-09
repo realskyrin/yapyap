@@ -125,3 +125,7 @@ xcodegen
 # 用 Xcode 打开并构建
 open yapyap.xcodeproj
 ```
+
+## 许可证
+
+本项目基于 [MIT 协议](LICENSE) 开源。
