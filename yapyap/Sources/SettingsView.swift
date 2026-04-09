@@ -321,6 +321,7 @@ struct GeneralTabView: View {
 
 struct ASRTabView: View {
     @ObservedObject private var store = SettingsStore.shared
+    @ObservedObject private var modelManager = ModelManager.shared
     @State private var showAccessKey = false
     @State private var testState: TestState = .idle
 
@@ -337,94 +338,139 @@ struct ASRTabView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            SectionCard(
-                header: L10n.asrApiHeader,
-                trailing: AnyView(
-                    Link(L10n.getKey, destination: URL(string: "https://console.volcengine.com/speech/service/10038")!)
-                        .font(.system(size: 11))
-                )
-            ) {
-                CardRow(label: "App Key") {
-                    TextField("", text: $store.appKey)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(maxWidth: .infinity)
-                }
-                CardDivider()
-                CardRow(label: "Access Key") {
-                    HStack(spacing: 4) {
-                        if showAccessKey {
-                            TextField("", text: $store.accessKey)
-                                .textFieldStyle(.roundedBorder)
-                        } else {
-                            SecureField("", text: $store.accessKey)
-                                .textFieldStyle(.roundedBorder)
-                        }
-                        Button(action: { showAccessKey.toggle() }) {
-                            Image(systemName: showAccessKey ? "eye.slash" : "eye")
-                                .foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.borderless)
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                CardDivider()
-                CardRow(label: "Resource ID") {
-                    Picker("", selection: $store.resourceId) {
-                        Text(L10n.resourceHourly20).tag("volc.seedasr.sauc.duration")
-                        Text(L10n.resourceConcurrent20).tag("volc.seedasr.sauc.concurrent")
-                        Text(L10n.resourceHourly10).tag("volc.bigasr.sauc.duration")
-                        Text(L10n.resourceConcurrent10).tag("volc.bigasr.sauc.concurrent")
-                    }
-                    .labelsHidden()
-                }
-                CardDivider()
-
-                // Test connection row
-                HStack {
-                    Button(action: runTest) {
-                        HStack(spacing: 4) {
-                            if case .testing = testState {
-                                ProgressView().controlSize(.small)
-                            }
-                            Text(L10n.testConnection)
-                        }
-                    }
-                    .disabled(store.appKey.isEmpty || store.accessKey.isEmpty || isTestRunning)
-
-                    Spacer()
-
-                    switch testState {
-                    case .idle:
-                        EmptyView()
-                    case .testing:
-                        Text(L10n.connecting)
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                    case .success(let msg):
-                        Label(msg, systemImage: "checkmark.circle.fill")
-                            .font(.callout)
-                            .foregroundStyle(.green)
-                    case .failure:
-                        EmptyView()
+            // ASR Mode picker
+            SectionCard(header: L10n.asrModeHeader) {
+                Picker("", selection: $store.asrMode) {
+                    ForEach(ASRMode.allCases, id: \.self) { mode in
+                        Text(mode.displayName).tag(mode)
                     }
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .padding(12)
+            }
 
-                if case .failure(let msg) = testState {
-                    Text(msg)
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(.red)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(6)
-                        .background(Color.red.opacity(0.06))
-                        .padding(.horizontal, 12)
-                        .padding(.bottom, 8)
-                }
+            if store.asrMode == .online {
+                onlineSettingsSection
+            } else {
+                localModelsSection
             }
         }
     }
+
+    // MARK: - Online Settings
+
+    private var onlineSettingsSection: some View {
+        SectionCard(
+            header: L10n.asrApiHeader,
+            trailing: AnyView(
+                Link(L10n.getKey, destination: URL(string: "https://console.volcengine.com/speech/service/10038")!)
+                    .font(.system(size: 11))
+            )
+        ) {
+            CardRow(label: "App Key") {
+                TextField("", text: $store.appKey)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(maxWidth: .infinity)
+            }
+            CardDivider()
+            CardRow(label: "Access Key") {
+                HStack(spacing: 4) {
+                    if showAccessKey {
+                        TextField("", text: $store.accessKey)
+                            .textFieldStyle(.roundedBorder)
+                    } else {
+                        SecureField("", text: $store.accessKey)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    Button(action: { showAccessKey.toggle() }) {
+                        Image(systemName: showAccessKey ? "eye.slash" : "eye")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.borderless)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            CardDivider()
+            CardRow(label: "Resource ID") {
+                Picker("", selection: $store.resourceId) {
+                    Text(L10n.resourceHourly20).tag("volc.seedasr.sauc.duration")
+                    Text(L10n.resourceConcurrent20).tag("volc.seedasr.sauc.concurrent")
+                    Text(L10n.resourceHourly10).tag("volc.bigasr.sauc.duration")
+                    Text(L10n.resourceConcurrent10).tag("volc.bigasr.sauc.concurrent")
+                }
+                .labelsHidden()
+            }
+            CardDivider()
+
+            HStack {
+                Button(action: runTest) {
+                    HStack(spacing: 4) {
+                        if case .testing = testState {
+                            ProgressView().controlSize(.small)
+                        }
+                        Text(L10n.testConnection)
+                    }
+                }
+                .disabled(store.appKey.isEmpty || store.accessKey.isEmpty || isTestRunning)
+
+                Spacer()
+
+                switch testState {
+                case .idle:
+                    EmptyView()
+                case .testing:
+                    Text(L10n.connecting)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                case .success(let msg):
+                    Label(msg, systemImage: "checkmark.circle.fill")
+                        .font(.callout)
+                        .foregroundStyle(.green)
+                case .failure:
+                    EmptyView()
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+
+            if case .failure(let msg) = testState {
+                Text(msg)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.red)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(6)
+                    .background(Color.red.opacity(0.06))
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 8)
+            }
+        }
+    }
+
+    // MARK: - Local Models
+
+    private var localModelsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if modelManager.downloadedModels.isEmpty {
+                Text(L10n.noModelHint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 2)
+            } else if store.selectedModelId.isEmpty {
+                Text(L10n.noModelHint)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .padding(.leading, 2)
+            }
+
+            ForEach(modelManager.catalog) { model in
+                ModelCardView(model: model)
+            }
+        }
+    }
+
+    // MARK: - Test Connection
 
     private func runTest() {
         testState = .testing
@@ -442,6 +488,113 @@ struct ASRTabView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Model Card
+
+struct ModelCardView: View {
+    let model: ModelInfo
+    @ObservedObject private var store = SettingsStore.shared
+    @ObservedObject private var modelManager = ModelManager.shared
+
+    private var isDownloaded: Bool { modelManager.isDownloaded(model.id) }
+    private var isDownloading: Bool { modelManager.downloadProgress[model.id] != nil }
+    private var isExtracting: Bool { modelManager.isExtracting[model.id] == true }
+    private var isActive: Bool { store.selectedModelId == model.id }
+    private var progress: Double { modelManager.downloadProgress[model.id] ?? 0 }
+    private var speed: String { modelManager.downloadSpeed[model.id] ?? "" }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+                        Text(model.name)
+                            .font(.system(size: 13, weight: .medium))
+                        Text(model.sizeDescription)
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    Text(model.languagesDescription)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                if isExtracting {
+                    HStack(spacing: 4) {
+                        ProgressView().controlSize(.small)
+                        Text(L10n.modelExtracting)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } else if isDownloading {
+                    Button(L10n.cancelDownload) {
+                        modelManager.cancelDownload(model.id)
+                    }
+                    .controlSize(.small)
+                } else if isDownloaded {
+                    HStack(spacing: 8) {
+                        if isActive {
+                            Text(L10n.modelActive)
+                                .font(.caption)
+                                .foregroundStyle(.orange)
+                                .fontWeight(.medium)
+                        } else {
+                            Button(action: { store.selectedModelId = model.id }) {
+                                Text(L10n.lang == .zh ? "选择" : "Select")
+                            }
+                            .controlSize(.small)
+                        }
+                        Button(action: { modelManager.delete(model.id) }) {
+                            Image(systemName: "trash")
+                                .foregroundStyle(.red.opacity(0.7))
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                } else {
+                    Button(L10n.modelDownload) {
+                        modelManager.download(model.id)
+                    }
+                    .controlSize(.small)
+                }
+            }
+            .padding(12)
+
+            if isDownloading {
+                VStack(spacing: 4) {
+                    ProgressView(value: progress)
+                        .progressViewStyle(.linear)
+                    HStack {
+                        Text("\(Int(progress * 100))%")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        if !speed.isEmpty {
+                            Text(speed)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.bottom, 10)
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color(nsColor: .controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(
+                    isActive ? Color.orange.opacity(0.5) : Color(nsColor: .separatorColor).opacity(0.5),
+                    lineWidth: isActive ? 1.5 : 0.5
+                )
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 }
 
