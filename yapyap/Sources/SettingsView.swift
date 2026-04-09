@@ -37,52 +37,59 @@ struct SettingsView: View {
     var onLaunch: (() -> Void)?
 
     var body: some View {
-        HStack(spacing: 0) {
-            // Sidebar
-            VStack(alignment: .leading, spacing: 2) {
-                ForEach(SettingsTab.allCases, id: \.self) { tab in
-                    sidebarButton(tab)
-                }
-                Spacer()
-                if isStartup {
-                    Button(action: { onLaunch?() }) {
-                        Text(L10n.launchApp)
-                            .frame(maxWidth: .infinity)
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                // Sidebar
+                VStack(alignment: .leading, spacing: 2) {
+                    ForEach(SettingsTab.allCases, id: \.self) { tab in
+                        sidebarButton(tab)
                     }
-                    .controlSize(.large)
-                    .keyboardShortcut(.defaultAction)
-                    .padding(.horizontal, 8)
-                    .padding(.bottom, 4)
+                    Spacer()
+                    if isStartup {
+                        Button(action: { onLaunch?() }) {
+                            Text(L10n.launchApp)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .controlSize(.large)
+                        .keyboardShortcut(.defaultAction)
+                        .padding(.horizontal, 8)
+                        .padding(.bottom, 4)
+                    }
                 }
+                .padding(.vertical, 12)
+                .padding(.horizontal, 8)
+                .frame(width: 150)
+
+                Divider()
+
+                // Content
+                ScrollView {
+                    Group {
+                        switch selectedTab {
+                        case .general:
+                            GeneralTabView()
+                        case .asr:
+                            ASRTabView()
+                        case .textProcessing:
+                            TextProcessingTabView()
+                        case .ai:
+                            AITabView()
+                        case .usage:
+                            UsageTabView()
+                        }
+                    }
+                    .padding(24)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 8)
-            .frame(width: 150)
+            .frame(maxHeight: .infinity)
 
             Divider()
 
-            // Content
-            ScrollView {
-                Group {
-                    switch selectedTab {
-                    case .general:
-                        GeneralTabView()
-                    case .asr:
-                        ASRTabView()
-                    case .textProcessing:
-                        TextProcessingTabView()
-                    case .ai:
-                        AITabView()
-                    case .usage:
-                        UsageTabView()
-                    }
-                }
-                .padding(24)
-                .frame(maxWidth: .infinity, alignment: .topLeading)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            SettingsStatusBar()
         }
-        .frame(width: 680, height: 520)
+        .frame(width: 680, height: 556)
     }
 
     private func sidebarButton(_ tab: SettingsTab) -> some View {
@@ -1400,5 +1407,32 @@ struct StatusPill<PopoverContent: View>: View {
             return Color(nsColor: .controlBackgroundColor).opacity(0.7)
         }
         return Color.clear
+    }
+}
+
+// MARK: - Settings Status Bar
+
+struct SettingsStatusBar: View {
+    @ObservedObject private var store = SettingsStore.shared
+    @ObservedObject private var modelManager = ModelManager.shared
+    @ObservedObject private var llmManager = LLMModelManager.shared
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Spacer()
+            Text(versionString)
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .frame(height: 36)
+    }
+
+    // MARK: - Version
+
+    private var versionString: String {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
+        return "v\(version)"
     }
 }
