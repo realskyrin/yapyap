@@ -18,8 +18,15 @@ class OverlayWindow {
     private var bubbleContainerView: NSView?
     private var bubbleTextField: NSTextField?
     private var containerView: NSView?
+    private var cancelButton: OverlayActionButton?
+    private var confirmButton: OverlayActionButton?
     private var currentText: String = ""
     private var state: OverlayState = .recording
+    private var isClickMode = false
+
+    // Callbacks for click-mode buttons
+    var onCancel: (() -> Void)?
+    var onConfirm: (() -> Void)?
 
     // Layout constants
     private let capsuleHeight: CGFloat = 33
@@ -30,6 +37,8 @@ class OverlayWindow {
     private let bubblePaddingH: CGFloat = 12
     private let bubblePaddingV: CGFloat = 8
     private let bottomOffset: CGFloat = 120 // above dock
+    private let actionButtonSize: CGFloat = 33
+    private let actionButtonGap: CGFloat = 4
 
     func show() {
         guard window == nil else { return }
@@ -45,15 +54,16 @@ class OverlayWindow {
         let y = bottomOffset
 
         let frame = NSRect(x: x, y: y, width: winWidth, height: winHeight)
-        let win = NSWindow(contentRect: frame,
-                           styleMask: .borderless,
-                           backing: .buffered,
-                           defer: false)
+        let win = NSPanel(contentRect: frame,
+                          styleMask: [.borderless, .nonactivatingPanel],
+                          backing: .buffered,
+                          defer: false)
         win.level = .floating
         win.backgroundColor = .clear
         win.isOpaque = false
         win.hasShadow = false
         win.ignoresMouseEvents = true
+        win.hidesOnDeactivate = false
         win.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
 
         // Container uses flipped coords (top-left origin)
@@ -90,6 +100,7 @@ class OverlayWindow {
         textField.maximumNumberOfLines = 5
         textField.cell?.wraps = true
         textField.cell?.isScrollable = false
+        textField.alphaValue = 0  // fade in with container
         bubbleContainer.addSubview(textField)
         self.bubbleTextField = textField
 
@@ -124,13 +135,67 @@ class OverlayWindow {
             win.animator().alphaValue = 0
         }, completionHandler: { [weak self] in
             win.orderOut(nil)
+            win.ignoresMouseEvents = true
             self?.window = nil
             self?.capsuleView = nil
             self?.bubbleContainerView = nil
             self?.bubbleTextField = nil
             self?.containerView = nil
+            self?.cancelButton = nil
+            self?.confirmButton = nil
             self?.currentText = ""
+            self?.isClickMode = false
         })
+    }
+
+    func enterClickMode() {
+        guard let parentView = containerView,
+              let capsule = capsuleView,
+              let win = window else {
+            logger.warning("enterClickMode: window not ready yet")
+            return
+        }
+        logger.info("enterClickMode: showing action buttons")
+        isClickMode = true
+
+        if cancelButton == nil {
+            let cancel = OverlayActionButton(kind: .cancel,
+                frame: NSRect(x: 0, y: 0, width: actionButtonSize, height: actionButtonSize))
+            cancel.alphaValue = 0
+            cancel.onClick = { [weak self] in self?.onCancel?() }
+            parentView.addSubview(cancel)
+            self.cancelButton = cancel
+
+            let confirm = OverlayActionButton(kind: .confirm,
+                frame: NSRect(x: 0, y: 0, width: actionButtonSize, height: actionButtonSize))
+            confirm.alphaValue = 0
+            confirm.onClick = { [weak self] in self?.onConfirm?() }
+            parentView.addSubview(confirm)
+            self.confirmButton = confirm
+        }
+
+        layoutActionButtons()
+        win.ignoresMouseEvents = false
+
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.18
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            self.cancelButton?.animator().alphaValue = 1
+            self.confirmButton?.animator().alphaValue = 1
+        }
+    }
+
+    private func layoutActionButtons() {
+        guard let capsule = capsuleView,
+              let cancel = cancelButton,
+              let confirm = confirmButton else { return }
+
+        let cancelX = capsule.frame.origin.x - actionButtonGap - actionButtonSize
+        let confirmX = capsule.frame.maxX + actionButtonGap
+        let btnY = capsule.frame.origin.y + (capsule.frame.height - actionButtonSize) / 2
+
+        cancel.frame = NSRect(x: cancelX, y: btnY, width: actionButtonSize, height: actionButtonSize)
+        confirm.frame = NSRect(x: confirmX, y: btnY, width: actionButtonSize, height: actionButtonSize)
     }
 
     func updateLevel(_ level: Float) {
@@ -148,12 +213,10 @@ class OverlayWindow {
                   let capsule = self.capsuleView,
                   let win = self.window else { return }
 
-            textField.stringValue = text
-
             let maxTextWidth = self.bubbleMaxWidth - self.bubblePaddingH * 2
             let font = textField.font ?? NSFont.systemFont(ofSize: 13, weight: .medium)
 
-            // Measure natural single-line text width using NSString
+            // Measure text size
             let attrs: [NSAttributedString.Key: Any] = [.font: font]
             let singleLineWidth = ceil((text as NSString).size(withAttributes: attrs).width)
 
@@ -176,42 +239,65 @@ class OverlayWindow {
 
             let bubbleWidth = min(contentWidth + self.bubblePaddingH * 2, self.bubbleMaxWidth)
             let bubbleHeight = max(self.bubbleMinHeight, textHeight + self.bubblePaddingV * 2)
-
-            // Resize text field
-            textField.frame = NSRect(
-                x: self.bubblePaddingH, y: self.bubblePaddingV,
-                width: bubbleWidth - self.bubblePaddingH * 2,
-                height: bubbleHeight - self.bubblePaddingV * 2
-            )
-
-            // Animate bubble container resize (centered in parent)
             let bubbleX = (parentView.bounds.width - bubbleWidth) / 2
             let targetBubbleFrame = NSRect(x: bubbleX, y: 0, width: bubbleWidth, height: bubbleHeight)
-
-            NSAnimationContext.runAnimationGroup { ctx in
-                ctx.duration = 0.15
-                ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
-                bubbleContainer.animator().frame = targetBubbleFrame
-            }
-
-            // Reposition capsule below bubble
             let capsuleX = (parentView.bounds.width - self.capsuleWidthCompact) / 2
-            capsule.frame = NSRect(x: capsuleX, y: bubbleHeight + self.bubbleGap, width: self.capsuleWidthCompact, height: self.capsuleHeight)
-
-            // Resize window (grow upward, keep bottom edge fixed)
+            let targetCapsuleFrame = NSRect(x: capsuleX, y: bubbleHeight + self.bubbleGap,
+                                            width: self.capsuleWidthCompact, height: self.capsuleHeight)
             let totalHeight = bubbleHeight + self.bubbleGap + self.capsuleHeight + 20
             var winFrame = win.frame
             winFrame.size.height = totalHeight
             winFrame.origin.y = self.bottomOffset
-            win.setFrame(winFrame, display: true)
 
-            // Show bubble if hidden
-            if bubbleContainer.alphaValue < 1 {
+            // First appearance: set frames instantly, then fade in container + text together
+            let isFirstAppearance = bubbleContainer.alphaValue < 1
+
+            if isFirstAppearance {
+                // Set layout immediately (no animation) so text is never clipped
+                bubbleContainer.frame = targetBubbleFrame
+                textField.frame = NSRect(
+                    x: self.bubblePaddingH, y: self.bubblePaddingV,
+                    width: bubbleWidth - self.bubblePaddingH * 2,
+                    height: bubbleHeight - self.bubblePaddingV * 2
+                )
+                capsule.frame = targetCapsuleFrame
+                win.setFrame(winFrame, display: true)
+                textField.stringValue = text
+
+                // Fade in container and text together (Bug 1 fix)
                 NSAnimationContext.runAnimationGroup { ctx in
-                    ctx.duration = 0.25
+                    ctx.duration = 0.2
                     ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
                     bubbleContainer.animator().alphaValue = 1
+                    textField.animator().alphaValue = 1
                 }
+            } else {
+                // Subsequent updates: resize layout instantly, then set text (Bug 2 fix)
+                // All layout changes in one pass — no animated frame, no clipping gap
+                CATransaction.begin()
+                CATransaction.setDisableActions(true)
+                bubbleContainer.frame = targetBubbleFrame
+                textField.frame = NSRect(
+                    x: self.bubblePaddingH, y: self.bubblePaddingV,
+                    width: bubbleWidth - self.bubblePaddingH * 2,
+                    height: bubbleHeight - self.bubblePaddingV * 2
+                )
+                capsule.frame = targetCapsuleFrame
+                CATransaction.commit()
+
+                textField.stringValue = text
+
+                // Animate window frame for smooth visual growth (Bug 3 fix)
+                NSAnimationContext.runAnimationGroup { ctx in
+                    ctx.duration = 0.18
+                    ctx.timingFunction = CAMediaTimingFunction(controlPoints: 0.25, 1.0, 0.5, 1.0)
+                    win.animator().setFrame(winFrame, display: true)
+                }
+            }
+
+            // Keep action buttons aligned with capsule
+            if self.isClickMode {
+                self.layoutActionButtons()
             }
         }
     }
@@ -219,12 +305,22 @@ class OverlayWindow {
     func showProcessing() {
         state = .processing
         capsuleView?.showProcessing()
-        // Fade out the text bubble during processing
         DispatchQueue.main.async { [weak self] in
-            guard let container = self?.bubbleContainerView else { return }
+            guard let self else { return }
             NSAnimationContext.runAnimationGroup { ctx in
                 ctx.duration = 0.2
-                container.animator().alphaValue = 0
+                ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
+                self.bubbleContainerView?.animator().alphaValue = 0
+                // Hide action buttons when entering processing
+                self.cancelButton?.animator().alphaValue = 0
+                self.confirmButton?.animator().alphaValue = 0
+            } completionHandler: { [weak self] in
+                self?.cancelButton?.removeFromSuperview()
+                self?.cancelButton = nil
+                self?.confirmButton?.removeFromSuperview()
+                self?.confirmButton = nil
+                self?.isClickMode = false
+                self?.window?.ignoresMouseEvents = true
             }
         }
     }
@@ -234,6 +330,13 @@ class OverlayWindow {
 
 private class FlippedView: NSView {
     override var isFlipped: Bool { true }
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        // Only allow clicks on OverlayActionButton; everything else passes through
+        let result = super.hitTest(point)
+        if result is OverlayActionButton { return result }
+        return nil
+    }
 }
 
 // MARK: - CapsuleView
@@ -398,5 +501,87 @@ private class CapsuleView: NSView {
         if p < 0.50 { return (-0.3, 2.5 * sin(Double.pi * (p - 0.24) / 0.26)) }
         if p < 0.62 { return (0.5, -2.5 * ((p - 0.50) / 0.12)) }
         return (0.2 * sin(Double.pi * 2 * p), 1.0 * sin(Double.pi * 3 * p))
+    }
+}
+
+// MARK: - OverlayActionButton (cancel / confirm circles for click mode)
+
+private class OverlayActionButton: NSView {
+    enum Kind { case cancel, confirm }
+    let kind: Kind
+    var onClick: (() -> Void)?
+    private var isPressed = false
+
+    private let bgColor = NSColor(calibratedRed: 20/255, green: 20/255, blue: 20/255, alpha: 0.92)
+    private let pressedBgColor = NSColor(calibratedWhite: 0.28, alpha: 0.92)
+    private let symbolColor = NSColor(calibratedWhite: 1.0, alpha: 0.85)
+
+    init(kind: Kind, frame: NSRect) {
+        self.kind = kind
+        super.init(frame: frame)
+        wantsLayer = true
+        focusRingType = .none
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override var isFlipped: Bool { true }
+    override var acceptsFirstResponder: Bool { false }
+    override var focusRingType: NSFocusRingType {
+        get { .none }
+        set {}
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+
+        // Circle background — lighter when pressed
+        let circle = NSBezierPath(ovalIn: bounds.insetBy(dx: 0.5, dy: 0.5))
+        (isPressed ? pressedBgColor : bgColor).setFill()
+        circle.fill()
+
+        // Subtle border
+        NSColor(calibratedWhite: 1.0, alpha: 0.06).setStroke()
+        circle.lineWidth = 0.5
+        circle.stroke()
+
+        // Draw symbol
+        let cx = bounds.midX
+        let cy = bounds.midY
+        let s: CGFloat = 5.0
+
+        let path = NSBezierPath()
+        path.lineWidth = 1.8
+        path.lineCapStyle = .round
+        path.lineJoinStyle = .round
+        symbolColor.setStroke()
+
+        switch kind {
+        case .cancel:
+            path.move(to: CGPoint(x: cx - s, y: cy - s))
+            path.line(to: CGPoint(x: cx + s, y: cy + s))
+            path.move(to: CGPoint(x: cx + s, y: cy - s))
+            path.line(to: CGPoint(x: cx - s, y: cy + s))
+        case .confirm:
+            // Checkmark: left → bottom → top-right (flipped coords, y down)
+            path.move(to: CGPoint(x: cx - s * 0.9, y: cy - s * 0.1))
+            path.line(to: CGPoint(x: cx - s * 0.15, y: cy + s * 0.7))
+            path.line(to: CGPoint(x: cx + s, y: cy - s * 0.7))
+        }
+        path.stroke()
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        isPressed = true
+        needsDisplay = true
+    }
+
+    override func mouseUp(with event: NSEvent) {
+        isPressed = false
+        needsDisplay = true
+        let localPoint = convert(event.locationInWindow, from: nil)
+        if bounds.contains(localPoint) {
+            onClick?()
+        }
     }
 }

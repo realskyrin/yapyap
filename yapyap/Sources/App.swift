@@ -113,6 +113,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private func setupComponents() {
         overlayWindow = OverlayWindow()
+        overlayWindow.onCancel = { [weak self] in self?.handleEscCancel() }
+        overlayWindow.onConfirm = { [weak self] in
+            guard let self, self.recordingMode == .clickRecording else { return }
+            self.recordingMode = .processing
+            self.stopRecording()
+        }
         audioEngine = AudioEngine()
         asrClient = ASRClient()
         keyMonitor = KeyMonitor()
@@ -154,6 +160,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             } else {
                 // Quick tap → enter click-toggle mode, keep recording
                 recordingMode = .clickRecording
+                DispatchQueue.main.async {
+                    self.overlayWindow.enterClickMode()
+                }
             }
         case .clickRecording:
             // Second tap → stop recording
