@@ -11,6 +11,8 @@ DerivedData/
 # refer
 refer/
 
+docs/
+
 # Build artifacts
 build/
 *.app
