@@ -74,7 +74,11 @@ class LocalASREngine {
     }
 
     func unloadModel() {
-        stop()
+        // Wait for any in-flight inference to finish before niling the recognizer
+        inferenceTimer?.cancel()
+        inferenceTimer = nil
+        isSessionActive = false
+        inferenceQueue.sync {}  // barrier: waits for pending work to drain
         recognizer = nil
         logger.info("Model unloaded")
     }
@@ -121,16 +125,17 @@ class LocalASREngine {
         bufferLock.unlock()
     }
 
-    func stop() {
-        guard isSessionActive else { return }
+    func stop(completion: (() -> Void)? = nil) {
+        guard isSessionActive else { completion?(); return }
         isSessionActive = false
 
         inferenceTimer?.cancel()
         inferenceTimer = nil
 
-        // Run final inference with complete audio
+        // Run final inference with complete audio, then notify caller
         inferenceQueue.async { [weak self] in
             self?.runInference()
+            DispatchQueue.main.async { completion?() }
         }
 
         logger.info("Recording session stopped")

@@ -218,12 +218,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         if settings.asrMode == .online {
             guard !settings.appKey.isEmpty, !settings.accessKey.isEmpty else {
+                recordingMode = .idle
                 showNotConfiguredAlert()
                 return
             }
         } else {
             guard let model = modelManager.model(for: settings.selectedModelId),
                   let modelPath = modelManager.modelPath(for: model) else {
+                recordingMode = .idle
                 showNotConfiguredLocalAlert()
                 return
             }
@@ -308,10 +310,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
                     self.finalizeText()
                 }
             } else {
-                self.localASREngine.stop()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-                    guard let self else { return }
-                    self.finalizeText()
+                self.localASREngine.stop { [weak self] in
+                    self?.finalizeText()
                 }
             }
         }

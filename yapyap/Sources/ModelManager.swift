@@ -35,6 +35,7 @@ class ModelManager: ObservableObject {
 
     private var downloadTasks: [String: URLSessionDownloadTask] = [:]
     private var downloadDelegates: [String: DownloadDelegate] = [:]
+    private var downloadSessions: [String: URLSession] = [:]
 
     let catalog: [ModelInfo] = [
         ModelInfo(
@@ -141,6 +142,7 @@ class ModelManager: ObservableObject {
         let task = session.downloadTask(with: url)
 
         downloadDelegates[modelId] = delegate
+        downloadSessions[modelId] = session
         downloadTasks[modelId] = task
 
         DispatchQueue.main.async {
@@ -229,6 +231,8 @@ class ModelManager: ObservableObject {
     }
 
     private func cleanupDownload(_ modelId: String) {
+        downloadSessions[modelId]?.invalidateAndCancel()
+        downloadSessions[modelId] = nil
         downloadTasks[modelId] = nil
         downloadDelegates[modelId] = nil
         DispatchQueue.main.async {
