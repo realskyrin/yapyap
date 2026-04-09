@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-04-09
+
+### Changed
+- Prefer Xcode 16.3+ in release CI for mlx-swift-lm and add AGENTS.md
+
 ## [1.0.1] - 2026-04-09
 
 ### Added
