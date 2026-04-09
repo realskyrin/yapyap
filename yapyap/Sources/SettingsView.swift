@@ -1420,6 +1420,7 @@ struct SettingsStatusBar: View {
     var body: some View {
         HStack(spacing: 8) {
             voicePill
+            postProcessingPill
             Spacer()
             Text(versionString)
                 .font(.system(size: 11))
@@ -1499,5 +1500,62 @@ struct SettingsStatusBar: View {
         case "whisper-medium": return L10n.statusBarModelWhisperMediumDesc
         default: return ""
         }
+    }
+
+    // MARK: - Post-Processing Pill
+
+    private var postProcessingPill: some View {
+        StatusPill(
+            label: postLabel,
+            isActive: store.aiEnabled
+        ) { isOpen in
+            VStack(spacing: 0) {
+                QuickSwitchRow(
+                    title: L10n.statusBarPostOff,
+                    description: L10n.statusBarPostOffDesc,
+                    isActive: !store.aiEnabled
+                ) {
+                    store.aiEnabled = false
+                    isOpen.wrappedValue = false
+                }
+                Divider()
+                QuickSwitchRow(
+                    title: store.aiProvider.displayName,
+                    description: onlineRowDescription,
+                    isActive: store.aiEnabled && !store.useLocalAI
+                ) {
+                    store.aiEnabled = true
+                    store.useLocalAI = false
+                    isOpen.wrappedValue = false
+                }
+                if llmManager.isDownloaded {
+                    Divider()
+                    QuickSwitchRow(
+                        title: L10n.statusBarPostLocalName,
+                        description: L10n.statusBarPostLocalDesc,
+                        isActive: store.aiEnabled && store.useLocalAI
+                    ) {
+                        store.aiEnabled = true
+                        store.useLocalAI = true
+                        llmManager.ensureLoaded()
+                        isOpen.wrappedValue = false
+                    }
+                }
+            }
+            .frame(width: 280)
+        }
+    }
+
+    private var postLabel: String {
+        if !store.aiEnabled { return L10n.statusBarPostOff }
+        if store.useLocalAI { return "Qwen3 4B" }
+        return store.aiModel.isEmpty ? L10n.statusBarPostOnline : store.aiModel
+    }
+
+    private var onlineRowDescription: String {
+        if store.aiModel.isEmpty {
+            return L10n.lang == .zh ? "请在后处理标签中配置" : "Configure in Post-Processing tab"
+        }
+        return store.aiModel
     }
 }
