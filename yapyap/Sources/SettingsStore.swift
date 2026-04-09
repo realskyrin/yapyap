@@ -77,6 +77,16 @@ enum L10n {
             : "Add terms that AI should preserve during post-processing (e.g. spoken \"cloud code\" → \"Claude Code\", \"slash new\" → \"/new\")"
     }
 
+    // Local AI
+    static var localAIHeader: String { lang == .zh ? "本地模型" : "Local Model" }
+    static var useLocalAI: String { lang == .zh ? "使用本地模型（覆盖在线服务）" : "Use local model (overrides provider)" }
+    static var localAIModelName: String { "Qwen3 4B Instruct" }
+    static var localAIModelSize: String { "~2.1 GB" }
+    static var localAIDownloading: String { lang == .zh ? "下载中..." : "Downloading..." }
+    static var localAIReady: String { lang == .zh ? "已就绪" : "Ready" }
+    static var localAINotDownloaded: String { lang == .zh ? "未下载" : "Not downloaded" }
+    static var localAILoading: String { lang == .zh ? "加载中..." : "Loading..." }
+
     // Sidebar tabs
     static var tabGeneral: String { lang == .zh ? "通用" : "General" }
     static var tabASR: String { lang == .zh ? "模型设置" : "Model" }
@@ -301,6 +311,9 @@ class SettingsStore: ObservableObject {
             }
         }
     }
+    @Published var useLocalAI: Bool {
+        didSet { UserDefaults.standard.set(useLocalAI, forKey: "useLocalAI") }
+    }
     private init() {
         self.appKey = UserDefaults.standard.string(forKey: "appKey") ?? ""
         self.accessKey = UserDefaults.standard.string(forKey: "accessKey") ?? ""
@@ -340,5 +353,6 @@ class SettingsStore: ObservableObject {
         } else {
             self.aiTerms = []
         }
+        self.useLocalAI = UserDefaults.standard.bool(forKey: "useLocalAI")
     }
 }
