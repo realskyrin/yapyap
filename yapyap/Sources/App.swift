@@ -2,6 +2,9 @@ import SwiftUI
 import AppKit
 import AVFoundation
 import Combine
+import os.log
+
+private let appLogger = Logger(subsystem: "cn.skyrin.yapyap", category: "App")
 
 @main
 struct YapYapApp: App {
@@ -144,9 +147,42 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] modelId in
                 guard let self, !modelId.isEmpty else { return }
+                // Only eagerly load the recognizer when we're actually in local ASR
+                // mode. Loading it while the user is on online ASR would waste
+                // hundreds of MB of ONNX memory for a model that never runs.
+                guard SettingsStore.shared.asrMode == .local else { return }
                 if let model = self.modelManager.model(for: modelId),
                    let path = self.modelManager.modelPath(for: model) {
                     self.localASREngine.loadModel(model, path: path)
+                }
+            }
+            .store(in: &cancellables)
+
+        // Release the ONNX recognizer whenever the user switches to online ASR.
+        // Without this, picking a local model once keeps the model resident for
+        // the lifetime of the process even after switching back to cloud ASR.
+        SettingsStore.shared.$asrMode
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] mode in
+                guard let self else { return }
+                appLogger.info("asrMode changed to \(mode.rawValue, privacy: .public)")
+                if mode == .online {
+                    self.localASREngine.unloadModel()
+                }
+            }
+            .store(in: &cancellables)
+
+        // Release the MLX Qwen3 weights (~2.1 GB) whenever the user disables
+        // local AI. SettingsView only wires up the enable path; without this
+        // binding, toggling local AI off would leak the model until app quit.
+        SettingsStore.shared.$useLocalAI
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { enabled in
+                appLogger.info("useLocalAI changed to \(enabled, privacy: .public)")
+                if !enabled {
+                    LLMModelManager.shared.unload()
                 }
             }
             .store(in: &cancellables)

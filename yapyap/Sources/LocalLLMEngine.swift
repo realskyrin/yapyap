@@ -70,6 +70,13 @@ enum LocalLLMEngine {
         }
     }
 
+    /// Awaitable variant used by `LLMModelManager.unload()` — callers need to
+    /// know the ChatSession has actually released its `ModelContainer` reference
+    /// before they can flush MLX's buffer cache and reclaim the weights.
+    static func resetAndWait() async {
+        await sessionManager.reset()
+    }
+
     /// Defensive cleanup: strip thinking blocks, stray control tokens,
     /// and fall back to the original text if the model returned nothing.
     private static func sanitize(_ raw: String, fallback: String) -> String {

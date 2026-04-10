@@ -1,4 +1,5 @@
 import Foundation
+import MLX
 import MLXLLM
 import MLXLMCommon
 import os.log
@@ -153,9 +154,60 @@ class LLMModelManager: ObservableObject {
         return total
     }
 
-    func delete() {
-        LocalLLMEngine.reset()
+    /// Release the loaded model from memory while keeping the on-disk cache intact.
+    /// Called when the user switches away from local AI so the MLX weights (~2.1 GB
+    /// in unified memory) don't sit resident for the rest of the process lifetime.
+    ///
+    /// The teardown has two subtle requirements that an earlier version of this
+    /// method got wrong:
+    ///
+    /// 1. **We must await the ChatSession tearing down before flushing the cache.**
+    ///    `LocalLLMEngine`'s `SessionManager` holds a `ChatSession`, which holds a
+    ///    strong reference to the `ModelContainer`. Setting our own property to
+    ///    `nil` is not enough — the session keeps the weights alive. We call
+    ///    `resetAndWait()` and only continue once the session has been nilled out.
+    ///
+    /// 2. **We must call `Memory.clearCache()` *after* the container is
+    ///    deallocated.** MLX doesn't return freed buffers to the OS immediately:
+    ///    on deallocation they move from `activeMemory` to `cacheMemory` (a
+    ///    reusable buffer pool). The weights don't actually leave the process
+    ///    until someone flushes that pool. Without this explicit call, Activity
+    ///    Monitor keeps showing the ~2 GB footprint indefinitely.
+    func unload() {
+        guard modelContainer != nil || isLoading || loadTask != nil else { return }
+
+        loadTask?.cancel()
+        loadTask = nil
+
+        let before = MLX.Memory.snapshot()
+        let beforeActive = before.activeMemory / (1024 * 1024)
+        let beforeCache = before.cacheMemory / (1024 * 1024)
+        logger.info("LLM unload starting. MLX active=\(beforeActive, privacy: .public)MB cache=\(beforeCache, privacy: .public)MB")
+
         modelContainer = nil
+        isLoading = false
+        error = nil
+
+        Task {
+            // Wait for the SessionManager actor to drop its ChatSession. Only
+            // after this point is the ModelContainer's last reference released
+            // and the weights reclaimable.
+            await LocalLLMEngine.resetAndWait()
+
+            // Return cached MLX buffers (including the freed model weights that
+            // just moved from active to cache) to the OS. Without this the RSS
+            // footprint stays at the peak for the lifetime of the process.
+            MLX.Memory.clearCache()
+
+            let after = MLX.Memory.snapshot()
+            let afterActive = after.activeMemory / (1024 * 1024)
+            let afterCache = after.cacheMemory / (1024 * 1024)
+            logger.info("LLM unload complete. MLX active=\(afterActive, privacy: .public)MB cache=\(afterCache, privacy: .public)MB")
+        }
+    }
+
+    func delete() {
+        unload()
 
         if let cacheDir = hubCacheDirectory() {
             try? FileManager.default.removeItem(at: cacheDir)
@@ -163,7 +215,6 @@ class LLMModelManager: ObservableObject {
         }
 
         isDownloaded = false
-        error = nil
     }
 
     /// Load model into memory if already downloaded but not loaded (e.g. after app restart)
