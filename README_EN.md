@@ -116,6 +116,22 @@ yapyap distinguishes the two automatically (releasing `fn` within 0.3s counts as
 - macOS 14.0+
 - Apple Silicon
 
+## Memory Footprint
+
+yapyap loads local models on demand, and actively releases them when you switch back to an online provider (especially the 2 GB-ish local Qwen) — no app restart required, and memory does not keep growing.
+
+Approximate usage observed on Apple Silicon:
+
+| Configuration | Memory |
+|---------------|--------|
+| All online (Doubao + online post-processing) | ~350 MB |
+| Local ASR (SenseVoice Small) + online post-processing | ~360 MB |
+| Local ASR + local Qwen3 4B post-processing | ~2.5 GB |
+
+- Local ASR models (especially SenseVoice Small, ~155 MB) add a negligible amount — effectively free
+- Local Qwen3 4B post-processing adds about 2 GB (weights held in Apple Silicon's unified memory)
+- Flipping between local and online modes never requires restarting the app
+
 ## Build
 
 ```bash
