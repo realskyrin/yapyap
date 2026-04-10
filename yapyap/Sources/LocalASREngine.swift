@@ -8,13 +8,20 @@ class LocalASREngine {
 
     private var recognizer: SherpaOnnxOfflineRecognizer?
     private var currentStream: SherpaOnnxOfflineStreamWrapper?
-    private var pendingSamples: [Float] = []
-    private let bufferLock = NSLock()
-    private var inferenceTimer: DispatchSourceTimer?
-    private var isInferenceRunning = false
     private var isSessionActive = false
     private let inferenceQueue = DispatchQueue(label: "cn.skyrin.yapyap.localASR", qos: .userInitiated)
-    private let inferenceInterval: TimeInterval = 1.5
+
+    // App-side endpoint detection. We don't currently ship a dedicated VAD model,
+    // so segment utterances using audio energy and only decode on sentence-like pauses.
+    private let sampleRate: Double = 16_000
+    private let speechLevelThreshold: Float = 0.015
+    private let endpointSilenceDuration: TimeInterval = 0.9
+    private let minimumUtteranceDuration: TimeInterval = 0.25
+
+    private var transcript = ""
+    private var utteranceDuration: TimeInterval = 0
+    private var trailingSilenceDuration: TimeInterval = 0
+    private var utteranceHasSpeech = false
 
     // MARK: - Model Loading
 
@@ -75,13 +82,11 @@ class LocalASREngine {
     }
 
     func unloadModel() {
-        // Wait for any in-flight inference to finish before niling the recognizer
-        inferenceTimer?.cancel()
-        inferenceTimer = nil
-        isSessionActive = false
-        inferenceQueue.sync {}  // barrier: waits for pending work to drain
-        teardownSession()
-        recognizer = nil
+        inferenceQueue.sync {
+            isSessionActive = false
+            teardownSession(resetTranscript: true)
+            recognizer = nil
+        }
         logger.info("Model unloaded")
     }
 
@@ -92,25 +97,15 @@ class LocalASREngine {
     // MARK: - Session
 
     func start() {
-        guard let recognizer else {
+        guard recognizer != nil else {
             logger.error("Cannot start: no model loaded")
             return
         }
 
-        bufferLock.lock()
-        pendingSamples.removeAll(keepingCapacity: false)
-        bufferLock.unlock()
-        currentStream = recognizer.createStream()
-        isSessionActive = true
-
-        // Start periodic inference timer
-        let timer = DispatchSource.makeTimerSource(queue: inferenceQueue)
-        timer.schedule(deadline: .now() + inferenceInterval, repeating: inferenceInterval)
-        timer.setEventHandler { [weak self] in
-            self?.runInference()
+        inferenceQueue.sync {
+            teardownSession(resetTranscript: true)
+            isSessionActive = true
         }
-        timer.resume()
-        inferenceTimer = timer
 
         logger.info("Recording session started")
     }
@@ -123,74 +118,138 @@ class LocalASREngine {
             return (0..<int16Count).map { Float(int16Ptr[$0]) / 32768.0 }
         }
 
-        bufferLock.lock()
-        pendingSamples.append(contentsOf: samples)
-        bufferLock.unlock()
+        inferenceQueue.async { [weak self] in
+            self?.processChunk(samples)
+        }
     }
 
     func stop(completion: (() -> Void)? = nil) {
-        guard isSessionActive else {
-            teardownSession()
-            completion?()
-            return
-        }
-        isSessionActive = false
-
-        inferenceTimer?.cancel()
-        inferenceTimer = nil
-
-        // Run final inference with complete audio, then notify caller
         inferenceQueue.async { [weak self] in
-            self?.runInference(force: true)
-            self?.teardownSession()
+            guard let self else {
+                DispatchQueue.main.async { completion?() }
+                return
+            }
+
+            guard self.isSessionActive else {
+                self.teardownSession(resetTranscript: true)
+                DispatchQueue.main.async { completion?() }
+                return
+            }
+
+            self.isSessionActive = false
+            self.finalizeCurrentUtteranceIfNeeded(reason: "stop")
+            self.teardownSession(resetTranscript: true)
             DispatchQueue.main.async { completion?() }
         }
 
         logger.info("Recording session stopped")
     }
 
-    // MARK: - Inference
+    // MARK: - Segmentation / Inference
 
-    private func runInference(force: Bool = false) {
-        guard let recognizer, !isInferenceRunning else { return }
+    private func processChunk(_ samples: [Float]) {
+        guard isSessionActive, let recognizer, !samples.isEmpty else { return }
 
-        if currentStream == nil {
+        let level = rms(samples)
+        let hasSpeech = level >= speechLevelThreshold
+        let chunkDuration = Double(samples.count) / sampleRate
+
+        if hasSpeech && currentStream == nil {
             currentStream = recognizer.createStream()
         }
-        guard let stream = currentStream else { return }
 
-        bufferLock.lock()
-        let samples = pendingSamples
-        pendingSamples.removeAll(keepingCapacity: true)
-        bufferLock.unlock()
+        guard let stream = currentStream else {
+            return
+        }
 
-        guard force || !samples.isEmpty else { return }
+        stream.acceptWaveform(samples: samples, sampleRate: Int(sampleRate))
+        utteranceDuration += chunkDuration
 
-        isInferenceRunning = true
-        defer { isInferenceRunning = false }
+        if hasSpeech {
+            utteranceHasSpeech = true
+            trailingSilenceDuration = 0
+        } else if utteranceHasSpeech {
+            trailingSilenceDuration += chunkDuration
+        }
 
-        if !samples.isEmpty {
-            stream.acceptWaveform(samples: samples, sampleRate: 16_000)
+        let reachedEndpoint = utteranceHasSpeech
+            && utteranceDuration >= minimumUtteranceDuration
+            && trailingSilenceDuration >= endpointSilenceDuration
+
+        if reachedEndpoint {
+            finalizeCurrentUtteranceIfNeeded(reason: "endpoint")
+        }
+    }
+
+    private func finalizeCurrentUtteranceIfNeeded(reason: String) {
+        guard let recognizer, let stream = currentStream, utteranceHasSpeech else {
+            resetCurrentUtterance()
+            return
         }
 
         recognizer.decode(stream: stream)
         let result = recognizer.getResult(stream: stream)
         let text = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        logger.debug("Inference result (+\(samples.count) samples): \(text.prefix(100))")
+        logger.debug(
+            "Inference result (\(reason), \(Int(self.utteranceDuration * 1000)) ms utterance): \(text.prefix(100))"
+        )
 
         if !text.isEmpty {
+            transcript = Self.appendSegment(text, to: transcript)
+            let fullText = transcript
             DispatchQueue.main.async { [weak self] in
-                self?.onTextUpdate?(text)
+                self?.onTextUpdate?(fullText)
             }
+        }
+
+        resetCurrentUtterance()
+    }
+
+    private func resetCurrentUtterance() {
+        currentStream = nil
+        utteranceDuration = 0
+        trailingSilenceDuration = 0
+        utteranceHasSpeech = false
+    }
+
+    private func teardownSession(resetTranscript: Bool) {
+        resetCurrentUtterance()
+        if resetTranscript {
+            transcript.removeAll(keepingCapacity: false)
         }
     }
 
-    private func teardownSession() {
-        bufferLock.lock()
-        pendingSamples.removeAll(keepingCapacity: false)
-        bufferLock.unlock()
-        currentStream = nil
-        isInferenceRunning = false
+    private func rms(_ samples: [Float]) -> Float {
+        guard !samples.isEmpty else { return 0 }
+        var sum: Float = 0
+        for sample in samples {
+            sum += sample * sample
+        }
+        return sqrt(sum / Float(samples.count))
+    }
+
+    private static func appendSegment(_ segment: String, to transcript: String) -> String {
+        guard !segment.isEmpty else { return transcript }
+        guard !transcript.isEmpty else { return segment }
+
+        let needsSpace = needsSpaceBetween(transcript.last, and: segment.first)
+        return transcript + (needsSpace ? " " : "") + segment
+    }
+
+    private static func needsSpaceBetween(_ lhs: Character?, and rhs: Character?) -> Bool {
+        guard let lhs, let rhs else { return false }
+        if lhs.isWhitespace || rhs.isWhitespace {
+            return false
+        }
+
+        let lhsScalar = lhs.unicodeScalars.first
+        let rhsScalar = rhs.unicodeScalars.first
+
+        let lhsIsASCIIWord = lhsScalar.map { CharacterSet.alphanumerics.contains($0) && $0.isASCII } ?? false
+        let rhsIsASCIIWord = rhsScalar.map { CharacterSet.alphanumerics.contains($0) && $0.isASCII } ?? false
+        let lhsIsSentencePunctuation = ".!?,:;".contains(lhs)
+
+        return (lhsIsASCIIWord && rhsIsASCIIWord) || (lhsIsSentencePunctuation && rhsIsASCIIWord)
     }
 }
