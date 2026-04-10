@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-04-10
+
+### Changed
+- Fix GitHub release action reference (6390d64)
+- add MIT license (b4430ac)
+
 ## [1.0.2] - 2026-04-09
 
 ### Changed
