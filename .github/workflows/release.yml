@@ -15,7 +15,7 @@ concurrency:
 jobs:
   build:
     name: Build & Package
-    runs-on: macos-15
+    runs-on: [self-hosted, macOS, ARM64, macmini-01]
     outputs:
       version: ${{ steps.version.outputs.VERSION }}
       sha256: ${{ steps.digest.outputs.SHA256 }}
@@ -29,17 +29,25 @@ jobs:
       - name: Select Xcode
         run: |
           # mlx-swift-lm 2.31.x requires Swift tools 6.1, so prefer Xcode 16.3+.
+          SELECTED_XCODE=""
           for XCODE_PATH in \
             /Applications/Xcode_16.4.app \
             /Applications/Xcode_16.3.app \
             /Applications/Xcode.app
           do
             if [ -d "$XCODE_PATH" ]; then
-              sudo xcode-select -s "$XCODE_PATH"
+              SELECTED_XCODE="$XCODE_PATH"
               break
             fi
           done
 
+          if [ -z "$SELECTED_XCODE" ]; then
+            echo "No supported Xcode installation found." >&2
+            exit 1
+          fi
+
+          export DEVELOPER_DIR="$SELECTED_XCODE/Contents/Developer"
+          echo "DEVELOPER_DIR=$DEVELOPER_DIR" >> "$GITHUB_ENV"
           xcodebuild -version
           xcrun swift --version
 
@@ -145,7 +153,7 @@ jobs:
   release:
     name: Create GitHub Release
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS, ARM64, macmini-01]
     steps:
       - uses: actions/checkout@v4
 
@@ -194,7 +202,7 @@ jobs:
     needs:
       - build
       - release
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS, ARM64, macmini-01]
     steps:
       - uses: actions/checkout@v4
         with:
