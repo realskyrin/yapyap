@@ -85,6 +85,29 @@ yapyap distinguishes the two automatically (releasing `fn` within 0.3s counts as
 
 <img src="images/settings_general.png" width="420" alt="General settings" />
 
+## Install
+
+### Homebrew
+
+```bash
+brew tap realskyrin/yapyap https://github.com/realskyrin/yapyap
+brew install --cask realskyrin/yapyap/yapyap
+```
+
+Upgrade:
+
+```bash
+brew upgrade --cask realskyrin/yapyap/yapyap
+```
+
+If macOS blocks the first launch, remove the quarantine attribute and try again:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/yapyap.app
+```
+
+> Homebrew no longer supports `--no-quarantine`, so `brew install --cask --no-quarantine ...` is no longer a valid install path. If you installed the app somewhere other than `/Applications`, update the path accordingly.
+
 ## Usage
 
 ### Cloud ASR (recommended for quick start)

@@ -18,6 +18,7 @@ jobs:
     runs-on: macos-15
     outputs:
       version: ${{ steps.version.outputs.VERSION }}
+      sha256: ${{ steps.digest.outputs.SHA256 }}
     steps:
       - uses: actions/checkout@v4
 
@@ -103,6 +104,14 @@ jobs:
           APP_PATH="build/DerivedData/Build/Products/Release/yapyap.app"
           ditto -c -k --keepParent "$APP_PATH" "yapyap-${VERSION}-arm64.zip"
 
+      - name: Compute artifact SHA-256
+        id: digest
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          ZIP_PATH="yapyap-${VERSION}-arm64.zip"
+          SHA256="$(shasum -a 256 "$ZIP_PATH" | awk '{print $1}')"
+          echo "SHA256=$SHA256" >> "$GITHUB_OUTPUT"
+
       # --- Notarization (uncomment when ready) ---
       # To enable, add these GitHub Secrets:
       #   APPLE_ID - your Apple ID email
@@ -179,3 +188,33 @@ jobs:
           files: yapyap-*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update_cask:
+    name: Update Homebrew Cask
+    needs:
+      - build
+      - release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - name: Render cask
+        run: |
+          bash scripts/render-homebrew-cask.sh \
+            "${{ needs.build.outputs.version }}" \
+            "${{ needs.build.outputs.sha256 }}"
+
+      - name: Commit cask update
+        run: |
+          if git diff --quiet -- Casks/yapyap.rb; then
+            echo "Cask is already up to date."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Casks/yapyap.rb
+          git commit -m "chore: update Homebrew cask for v${{ needs.build.outputs.version }}"
+          git push origin HEAD:${{ github.event.repository.default_branch }}
