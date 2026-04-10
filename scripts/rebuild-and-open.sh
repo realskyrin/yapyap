@@ -33,7 +33,11 @@ else
 fi
 
 echo "==> [3/4] Launching $APP_BUNDLE..."
-open "$APP_BUNDLE"
+# Use -n to force a new instance. Without it, LaunchServices may still
+# have a stale entry for the just-killed process and tries to deliver
+# Apple events to it, returning -600 (procNotFound). Absolute path also
+# helps LaunchServices resolve the bundle reliably.
+open -n "$PROJECT_ROOT/$APP_BUNDLE"
 
 echo "==> [4/4] Waiting for $APP_NAME to start..."
 for i in $(seq 1 50); do
