@@ -154,6 +154,7 @@ class LLMModelManager: ObservableObject {
     }
 
     func delete() {
+        LocalLLMEngine.reset()
         modelContainer = nil
 
         if let cacheDir = hubCacheDirectory() {

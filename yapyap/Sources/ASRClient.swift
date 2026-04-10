@@ -284,8 +284,8 @@ class ASRClient {
         }
 
         logger.info("ASR text: \(text)")
-        DispatchQueue.main.async {
-            self.onTextUpdate?(text)
+        DispatchQueue.main.async { [weak self] in
+            self?.onTextUpdate?(text)
         }
     }
 

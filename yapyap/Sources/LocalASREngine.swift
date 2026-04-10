@@ -7,7 +7,8 @@ class LocalASREngine {
     var onTextUpdate: ((String) -> Void)?
 
     private var recognizer: SherpaOnnxOfflineRecognizer?
-    private var audioBuffer: [Float] = []
+    private var currentStream: SherpaOnnxOfflineStreamWrapper?
+    private var pendingSamples: [Float] = []
     private let bufferLock = NSLock()
     private var inferenceTimer: DispatchSourceTimer?
     private var isInferenceRunning = false
@@ -79,6 +80,7 @@ class LocalASREngine {
         inferenceTimer = nil
         isSessionActive = false
         inferenceQueue.sync {}  // barrier: waits for pending work to drain
+        teardownSession()
         recognizer = nil
         logger.info("Model unloaded")
     }
@@ -90,14 +92,15 @@ class LocalASREngine {
     // MARK: - Session
 
     func start() {
-        guard recognizer != nil else {
+        guard let recognizer else {
             logger.error("Cannot start: no model loaded")
             return
         }
 
         bufferLock.lock()
-        audioBuffer.removeAll()
+        pendingSamples.removeAll(keepingCapacity: false)
         bufferLock.unlock()
+        currentStream = recognizer.createStream()
         isSessionActive = true
 
         // Start periodic inference timer
@@ -121,12 +124,16 @@ class LocalASREngine {
         }
 
         bufferLock.lock()
-        audioBuffer.append(contentsOf: samples)
+        pendingSamples.append(contentsOf: samples)
         bufferLock.unlock()
     }
 
     func stop(completion: (() -> Void)? = nil) {
-        guard isSessionActive else { completion?(); return }
+        guard isSessionActive else {
+            teardownSession()
+            completion?()
+            return
+        }
         isSessionActive = false
 
         inferenceTimer?.cancel()
@@ -134,7 +141,8 @@ class LocalASREngine {
 
         // Run final inference with complete audio, then notify caller
         inferenceQueue.async { [weak self] in
-            self?.runInference()
+            self?.runInference(force: true)
+            self?.teardownSession()
             DispatchQueue.main.async { completion?() }
         }
 
@@ -143,28 +151,46 @@ class LocalASREngine {
 
     // MARK: - Inference
 
-    private func runInference() {
+    private func runInference(force: Bool = false) {
         guard let recognizer, !isInferenceRunning else { return }
 
+        if currentStream == nil {
+            currentStream = recognizer.createStream()
+        }
+        guard let stream = currentStream else { return }
+
         bufferLock.lock()
-        let samples = audioBuffer
+        let samples = pendingSamples
+        pendingSamples.removeAll(keepingCapacity: true)
         bufferLock.unlock()
 
-        guard !samples.isEmpty else { return }
+        guard force || !samples.isEmpty else { return }
 
         isInferenceRunning = true
+        defer { isInferenceRunning = false }
 
-        let result = recognizer.decode(samples: samples, sampleRate: 16_000)
+        if !samples.isEmpty {
+            stream.acceptWaveform(samples: samples, sampleRate: 16_000)
+        }
+
+        recognizer.decode(stream: stream)
+        let result = recognizer.getResult(stream: stream)
         let text = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        logger.debug("Inference result (\(samples.count) samples): \(text.prefix(100))")
+        logger.debug("Inference result (+\(samples.count) samples): \(text.prefix(100))")
 
         if !text.isEmpty {
             DispatchQueue.main.async { [weak self] in
                 self?.onTextUpdate?(text)
             }
         }
+    }
 
+    private func teardownSession() {
+        bufferLock.lock()
+        pendingSamples.removeAll(keepingCapacity: false)
+        bufferLock.unlock()
+        currentStream = nil
         isInferenceRunning = false
     }
 }
