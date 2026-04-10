@@ -173,19 +173,29 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             }
             .store(in: &cancellables)
 
-        // Release the MLX Qwen3 weights (~2.1 GB) whenever the user disables
-        // local AI. SettingsView only wires up the enable path; without this
-        // binding, toggling local AI off would leak the model until app quit.
-        SettingsStore.shared.$useLocalAI
-            .dropFirst()
-            .receive(on: DispatchQueue.main)
-            .sink { enabled in
-                appLogger.info("useLocalAI changed to \(enabled, privacy: .public)")
-                if !enabled {
-                    LLMModelManager.shared.unload()
-                }
+        // The local Qwen3 should be resident iff the user actually intends to
+        // use it: AI post-processing is enabled AND the mode is set to local.
+        // If either of those turns false (user toggles off the AI master
+        // switch OR switches back to an online provider), we release the
+        // ~2.1 GB of MLX weights. Combining both publishers with CombineLatest
+        // gives us a single source of truth for the "should local LLM be
+        // loaded?" question.
+        Publishers.CombineLatest(
+            SettingsStore.shared.$aiEnabled,
+            SettingsStore.shared.$useLocalAI
+        )
+        .dropFirst()
+        .receive(on: DispatchQueue.main)
+        .sink { aiEnabled, useLocalAI in
+            let shouldBeLoaded = aiEnabled && useLocalAI
+            appLogger.info("AI state changed: aiEnabled=\(aiEnabled, privacy: .public) useLocalAI=\(useLocalAI, privacy: .public) shouldBeLoaded=\(shouldBeLoaded, privacy: .public)")
+            if shouldBeLoaded {
+                LLMModelManager.shared.ensureLoaded()
+            } else {
+                LLMModelManager.shared.unload()
             }
-            .store(in: &cancellables)
+        }
+        .store(in: &cancellables)
     }
 
     // MARK: - Fn key state machine
