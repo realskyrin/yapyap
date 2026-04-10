@@ -1,6 +1,6 @@
 cask "yapyap" do
-  version "1.0.3"
-  sha256 "e6887b6bf724e6567adf69338e3f22b3d5916c5a91c8ffea8f2de217ea630b94"
+  version "1.0.4"
+  sha256 "a7102f83f5427f7f81aa9a116b8c88347fdb30a8a0a576027c3d4b808afb29e3"
 
   url "https://github.com/realskyrin/yapyap/releases/download/release-v#{version}/yapyap-#{version}-arm64.zip",
       verified: "github.com/realskyrin/yapyap/"
