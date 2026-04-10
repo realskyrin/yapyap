@@ -15,7 +15,7 @@ concurrency:
 jobs:
   build:
     name: Build & Package
-    runs-on: [self-hosted, macOS, ARM64, macmini-01]
+    runs-on: macos-15
     outputs:
       version: ${{ steps.version.outputs.VERSION }}
       sha256: ${{ steps.digest.outputs.SHA256 }}
@@ -153,7 +153,7 @@ jobs:
   release:
     name: Create GitHub Release
     needs: build
-    runs-on: [self-hosted, macOS, ARM64, macmini-01]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -202,7 +202,7 @@ jobs:
     needs:
       - build
       - release
-    runs-on: [self-hosted, macOS, ARM64, macmini-01]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
