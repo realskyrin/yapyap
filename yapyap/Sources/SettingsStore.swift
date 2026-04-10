@@ -72,12 +72,20 @@ enum L10n {
     static var aiPromptCopied: String { lang == .zh ? "已复制" : "Copied" }
     static var processing: String { lang == .zh ? "处理中" : "Processing" }
     static var aiTermsHeader: String { lang == .zh ? "术语" : "Terms" }
-    static var aiTermsPlaceholder: String { lang == .zh ? "添加术语..." : "Add term..." }
+    static var aiTermsAliasesPlaceholder: String {
+        lang == .zh ? "识别结果（逗号分隔，可留空）" : "Spoken forms (comma-separated, optional)"
+    }
+    static var aiTermsTargetPlaceholder: String {
+        lang == .zh ? "替换为..." : "Replace with..."
+    }
     static var aiTermsAdd: String { lang == .zh ? "添加" : "Add" }
     static var aiTermsTooltip: String {
         lang == .zh
-            ? "添加常用术语，AI 会在后处理时优先使用这些词（例如：口语「cloud code」→「Claude Code」，「slash new」→「/new」）"
-            : "Add terms that AI should preserve during post-processing (e.g. spoken \"cloud code\" → \"Claude Code\", \"slash new\" → \"/new\")"
+            ? "以「识别结果 → 替换目标」的形式添加术语。识别结果可填多个（逗号分隔），AI 碰到任一识别结果时会替换为目标。例如：识别结果「slash push, 斜杠 push」→ 替换为「/push」。识别结果留空则仅作为术语提示，让 AI 在输出时保留该词。"
+            : "Add terms as \"spoken form → replacement\". You can list multiple spoken forms (comma-separated); the AI will replace any of them with the target. E.g. \"slash push, 斜杠 push\" → \"/push\". Leave the spoken forms empty to just hint the AI to preserve this term if it appears."
+    }
+    static var aiTermsEmpty: String {
+        lang == .zh ? "尚未添加术语" : "No terms added yet"
     }
 
     // Local AI
@@ -326,6 +334,23 @@ enum ASRMode: String, CaseIterable {
     }
 }
 
+/// A glossary entry: one canonical `target` plus a list of `aliases` that the
+/// ASR may produce for it. The LLM replaces any matched alias with `target`.
+/// Entries with empty `aliases` act as "preserve this term if you see it"
+/// hints (the legacy behavior, kept so migrated single-string entries still
+/// contribute something useful).
+struct TermEntry: Codable, Identifiable, Equatable {
+    var id: UUID
+    var target: String
+    var aliases: [String]
+
+    init(id: UUID = UUID(), target: String, aliases: [String] = []) {
+        self.id = id
+        self.target = target
+        self.aliases = aliases
+    }
+}
+
 enum PunctuationMode: String, CaseIterable {
     case keepOriginal = "keepOriginal"
     case spaceReplace = "spaceReplace"
@@ -401,7 +426,7 @@ class SettingsStore: ObservableObject {
     @Published var aiPrompt: String {
         didSet { UserDefaults.standard.set(aiPrompt, forKey: "aiPrompt") }
     }
-    @Published var aiTerms: [String] {
+    @Published var aiTerms: [TermEntry] {
         didSet {
             if let data = try? JSONEncoder().encode(aiTerms) {
                 UserDefaults.standard.set(data, forKey: "aiTerms")
@@ -452,9 +477,18 @@ class SettingsStore: ObservableObject {
             // Upgrade path: preserve existing custom prompt by defaulting to .custom if user had one.
             self.aiPromptPreset = storedPrompt.isEmpty ? .default : .custom
         }
-        if let data = UserDefaults.standard.data(forKey: "aiTerms"),
-           let terms = try? JSONDecoder().decode([String].self, from: data) {
-            self.aiTerms = terms
+        // Prefer new [TermEntry] format; fall back to legacy [String] and migrate
+        // each old entry into a target-only TermEntry (no aliases). The legacy
+        // prompt treated those as "preserve this term if seen", so converting
+        // them this way preserves behavior for existing users.
+        if let data = UserDefaults.standard.data(forKey: "aiTerms") {
+            if let entries = try? JSONDecoder().decode([TermEntry].self, from: data) {
+                self.aiTerms = entries
+            } else if let legacy = try? JSONDecoder().decode([String].self, from: data) {
+                self.aiTerms = legacy.map { TermEntry(target: $0) }
+            } else {
+                self.aiTerms = []
+            }
         } else {
             self.aiTerms = []
         }
@@ -471,5 +505,54 @@ class SettingsStore: ObservableObject {
         case .default:
             return aiPromptPreset.promptText
         }
+    }
+
+    /// Builds the glossary block that gets appended to the system prompt for
+    /// both the online and local LLM paths. Returns an empty string when there
+    /// are no usable entries so callers can unconditionally concatenate.
+    ///
+    /// Format — split into two sections so small models can follow explicit
+    /// replace-rules rather than guessing:
+    ///   - Replacements: "alias1" | "alias2" → target
+    ///   - Preserve: target   (for entries with no aliases)
+    func glossaryPromptSection() -> String {
+        let usable = aiTerms.filter {
+            !$0.target.trimmingCharacters(in: .whitespaces).isEmpty
+        }
+        let withAliases = usable.filter { entry in
+            entry.aliases.contains(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty })
+        }
+        let preserveOnly = usable.filter { entry in
+            !entry.aliases.contains(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty })
+        }
+
+        if withAliases.isEmpty && preserveOnly.isEmpty { return "" }
+
+        var sections: [String] = []
+
+        if !withAliases.isEmpty {
+            let lines = withAliases.map { entry -> String in
+                let aliasList = entry.aliases
+                    .map { $0.trimmingCharacters(in: .whitespaces) }
+                    .filter { !$0.isEmpty }
+                    .map { "\"\($0)\"" }
+                    .joined(separator: " | ")
+                return "- \(aliasList) → \(entry.target)"
+            }
+            sections.append("""
+            Glossary replacements — when the input contains any of the quoted spoken forms on the left (they are common ASR misrecognitions), replace them with the exact target on the right. Match case-insensitively, ignore surrounding spaces, and only replace when the spoken form clearly appears — never insert a target that wasn't matched:
+            \(lines.joined(separator: "\n"))
+            """)
+        }
+
+        if !preserveOnly.isEmpty {
+            let bullets = preserveOnly.map { "- \($0.target)" }.joined(separator: "\n")
+            sections.append("""
+            Glossary — proper nouns and technical terms the speaker may use. ONLY keep these exact forms when the input clearly contains a misrecognized version of one of them. Do NOT insert these into the output if the input doesn't match them:
+            \(bullets)
+            """)
+        }
+
+        return "\n\n" + sections.joined(separator: "\n\n")
     }
 }

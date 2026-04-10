@@ -649,7 +649,8 @@ struct AITabView: View {
     @State private var fetchError: String? = nil
     @State private var showModelPopover = false
     @State private var modelSearchText = ""
-    @State private var newTerm = ""
+    @State private var newTermAliases = ""
+    @State private var newTermTarget = ""
     @State private var showTermsTooltip = false
 
     var body: some View {
@@ -906,18 +907,31 @@ struct AITabView: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 8) {
-                    TextField(L10n.aiTermsPlaceholder, text: $newTerm)
+                    TextField(L10n.aiTermsAliasesPlaceholder, text: $newTermAliases)
                         .textFieldStyle(.roundedBorder)
                         .onSubmit { addTerm() }
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                    TextField(L10n.aiTermsTargetPlaceholder, text: $newTermTarget)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(maxWidth: 140)
+                        .onSubmit { addTerm() }
                     Button(L10n.aiTermsAdd) { addTerm() }
-                        .disabled(newTerm.trimmingCharacters(in: .whitespaces).isEmpty)
+                        .disabled(newTermTarget.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
 
-                if !store.aiTerms.isEmpty {
-                    FlowLayout(spacing: 8) {
-                        ForEach(store.aiTerms, id: \.self) { term in
-                            TermTag(text: term) {
-                                store.aiTerms.removeAll { $0 == term }
+                if store.aiTerms.isEmpty {
+                    Text(L10n.aiTermsEmpty)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 2)
+                } else {
+                    VStack(spacing: 6) {
+                        ForEach(store.aiTerms) { entry in
+                            TermEntryRow(entry: entry) {
+                                store.aiTerms.removeAll { $0.id == entry.id }
                             }
                         }
                     }
@@ -1035,10 +1049,32 @@ struct AITabView: View {
     // MARK: - Terms
 
     private func addTerm() {
-        let term = newTerm.trimmingCharacters(in: .whitespaces)
-        guard !term.isEmpty, !store.aiTerms.contains(term) else { return }
-        store.aiTerms.append(term)
-        newTerm = ""
+        let target = newTermTarget.trimmingCharacters(in: .whitespaces)
+        guard !target.isEmpty else { return }
+
+        // Split aliases on both ASCII and Chinese comma, trim, drop empties and dedupe.
+        let aliases = newTermAliases
+            .split(whereSeparator: { $0 == "," || $0 == "\u{FF0C}" })
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        var seen = Set<String>()
+        let uniqueAliases = aliases.filter { seen.insert($0.lowercased()).inserted }
+
+        // If an entry with the same target exists, merge aliases into it instead
+        // of creating a duplicate row — keeps the list tidy when the user is
+        // iteratively adding spoken forms for the same target.
+        if let idx = store.aiTerms.firstIndex(where: { $0.target == target }) {
+            var merged = store.aiTerms[idx].aliases
+            for alias in uniqueAliases where !merged.contains(where: { $0.lowercased() == alias.lowercased() }) {
+                merged.append(alias)
+            }
+            store.aiTerms[idx].aliases = merged
+        } else {
+            store.aiTerms.append(TermEntry(target: target, aliases: uniqueAliases))
+        }
+
+        newTermAliases = ""
+        newTermTarget = ""
     }
 
     // MARK: - Fetch Models
@@ -1079,43 +1115,6 @@ struct AITabView: View {
                 fetchError = nil
             }
         }.resume()
-    }
-}
-
-// MARK: - Flow Layout
-
-struct FlowLayout: Layout {
-    var spacing: CGFloat = 8
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        arrange(in: proposal.width ?? .infinity, subviews: subviews).size
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let result = arrange(in: bounds.width, subviews: subviews)
-        for (i, pos) in result.positions.enumerated() {
-            subviews[i].place(at: CGPoint(x: bounds.minX + pos.x, y: bounds.minY + pos.y), proposal: .unspecified)
-        }
-    }
-
-    private func arrange(in width: CGFloat, subviews: Subviews) -> (size: CGSize, positions: [CGPoint]) {
-        var positions: [CGPoint] = []
-        var x: CGFloat = 0
-        var y: CGFloat = 0
-        var rowHeight: CGFloat = 0
-
-        for subview in subviews {
-            let size = subview.sizeThatFits(.unspecified)
-            if x + size.width > width, x > 0 {
-                x = 0
-                y += rowHeight + spacing
-                rowHeight = 0
-            }
-            positions.append(CGPoint(x: x, y: y))
-            rowHeight = max(rowHeight, size.height)
-            x += size.width + spacing
-        }
-        return (CGSize(width: width, height: y + rowHeight), positions)
     }
 }
 
@@ -1272,14 +1271,41 @@ struct PromptPresetCard: View {
 
 // MARK: - Term Tag
 
-struct TermTag: View {
-    let text: String
+struct TermEntryRow: View {
+    let entry: TermEntry
     let onRemove: () -> Void
 
     var body: some View {
-        HStack(spacing: 4) {
-            Text(text)
-                .font(.system(size: 12))
+        HStack(spacing: 8) {
+            // Aliases (left). Falls back to a muted "hint only" label when
+            // there are none, so preserve-only entries still read clearly.
+            Group {
+                if entry.aliases.isEmpty {
+                    Text(L10n.lang == .zh ? "（仅作术语保留）" : "(preserve only)")
+                        .font(.system(size: 11))
+                        .italic()
+                        .foregroundStyle(.tertiary)
+                } else {
+                    Text(entry.aliases.joined(separator: ", "))
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Image(systemName: "arrow.right")
+                .font(.system(size: 10))
+                .foregroundStyle(.tertiary)
+
+            // Target (right)
+            Text(entry.target)
+                .font(.system(size: 12, weight: .medium))
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: 140, alignment: .leading)
+
             Button(action: onRemove) {
                 Image(systemName: "xmark")
                     .font(.system(size: 9, weight: .bold))
@@ -1288,7 +1314,7 @@ struct TermTag: View {
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 10)
-        .padding(.vertical, 5)
+        .padding(.vertical, 6)
         .background(
             RoundedRectangle(cornerRadius: 6)
                 .fill(Color(nsColor: .controlBackgroundColor))

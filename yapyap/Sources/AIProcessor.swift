@@ -44,12 +44,7 @@ enum AIProcessor {
             return
         }
 
-        var systemPrompt = settings.effectiveSystemPrompt
-
-        if !settings.aiTerms.isEmpty {
-            let termsList = settings.aiTerms.map { "- \($0)" }.joined(separator: "\n")
-            systemPrompt += "\n\nIMPORTANT: The following terms/proper nouns must be used exactly as written when they appear in the text. Speech recognition may have misrecognized them:\n\(termsList)"
-        }
+        let systemPrompt = settings.effectiveSystemPrompt + settings.glossaryPromptSection()
 
         let body: [String: Any] = [
             "model": settings.aiModel,

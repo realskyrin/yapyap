@@ -30,19 +30,7 @@ enum LocalLLMEngine {
         }
 
         // Resolved via SettingsStore so UI, online path, and local path stay in sync.
-        var systemPrompt = settings.effectiveSystemPrompt
-
-        if !settings.aiTerms.isEmpty {
-            let termsList = settings.aiTerms.map { "- \($0)" }.joined(separator: "\n")
-            systemPrompt += """
-
-
-            Glossary — proper nouns and technical terms the speaker may use. ONLY substitute \
-            when the input clearly contains a misrecognized form of one of these. Do NOT insert \
-            these into the output if the input doesn't match them:
-            \(termsList)
-            """
-        }
+        let systemPrompt = settings.effectiveSystemPrompt + settings.glossaryPromptSection()
 
         logger.info("Local LLM processing: \(text.prefix(50))...")
 
