@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-04-10
+
+### Added
+- glossary terms as spoken-form -> target mappings (ee646d6)
+- decode local ASR on pauses (e9ae3e5)
+
+### Fixed
+- memmory leack (49e18e2)
+- unload local LLM when AI post-processing master switch is disabled (1835fe8)
+- bugfix (108efc5)
+
+### Changed
+- release local ASR and LLM models when switching to online mode (8ef7b0d)
+- Add Homebrew cask release automation and install docs (a30eccc)
+- Run release workflow on self-hosted runner (2b5340c)
+- script fix (bcbbd78)
+- update images (fb83fb0)
+- update readme (f943f6d)
+
 ## [1.0.3] - 2026-04-10
 
 ### Changed
