@@ -29,7 +29,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var startupWindow: NSWindow?
     private var cancellables = Set<AnyCancellable>()
     private var showMenuBarCancellable: AnyCancellable?
-    private var languageCancellable: AnyCancellable?
     private var latestRawText = ""
     private var latestProcessedText = ""
 
@@ -83,9 +82,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         statusItem.isVisible = SettingsStore.shared.showMenuBar
         if let button = statusItem.button {
             button.image = NSImage(systemSymbolName: "mic", accessibilityDescription: "yapyap")
+            button.target = self
+            button.action = #selector(statusItemClicked(_:))
+            // Receive both left- and right-clicks so we can differentiate:
+            // left → open Settings, right (or control+left) → show menu.
+            button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
-
-        buildMenu()
 
         // Observe showMenuBar changes to toggle visibility immediately
         showMenuBarCancellable = SettingsStore.shared.$showMenuBar
@@ -93,18 +95,46 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             .sink { [weak self] visible in
                 self?.statusItem.isVisible = visible
             }
-
-        // Rebuild menu when language changes
-        languageCancellable = SettingsStore.shared.$language
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                self?.buildMenu()
-            }
     }
 
-    private func buildMenu() {
+    @objc private func statusItemClicked(_ sender: Any?) {
+        let event = NSApp.currentEvent
+        let isRightClick = event?.type == .rightMouseUp
+            || (event?.type == .leftMouseUp && event?.modifierFlags.contains(.control) == true)
+
+        if isRightClick {
+            // Temporarily attach the menu so the status button pops it up at
+            // the correct position, then detach it so the next left-click
+            // fires our action again instead of re-opening the menu.
+            let menu = makeMenu()
+            statusItem.menu = menu
+            statusItem.button?.performClick(nil)
+            statusItem.menu = nil
+        } else {
+            openSettings()
+        }
+    }
+
+    private func makeMenu() -> NSMenu {
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: L10n.menuSettings, action: #selector(openSettings), keyEquivalent: ","))
+        menu.addItem(NSMenuItem.separator())
+
+        // Speech model submenu
+        let speechItem = NSMenuItem(title: L10n.tabASR, action: nil, keyEquivalent: "")
+        speechItem.submenu = makeSpeechModelSubmenu()
+        menu.addItem(speechItem)
+
+        // Formatting submenu (punctuation + english spacing)
+        let formattingItem = NSMenuItem(title: L10n.tabTextProcessing, action: nil, keyEquivalent: "")
+        formattingItem.submenu = makeFormattingSubmenu()
+        menu.addItem(formattingItem)
+
+        // Post-processing submenu
+        let postItem = NSMenuItem(title: L10n.tabAI, action: nil, keyEquivalent: "")
+        postItem.submenu = makePostProcessingSubmenu()
+        menu.addItem(postItem)
+
         menu.addItem(NSMenuItem.separator())
 
         let instructions = NSMenuItem(title: L10n.menuHoldFn, action: nil, keyEquivalent: "")
@@ -113,7 +143,157 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: L10n.menuQuit, action: #selector(quitApp), keyEquivalent: "q"))
-        statusItem.menu = menu
+        return menu
+    }
+
+    private func makeSpeechModelSubmenu() -> NSMenu {
+        let submenu = NSMenu()
+        let store = SettingsStore.shared
+
+        let onlineItem = NSMenuItem(
+            title: L10n.statusBarVoiceOnlineName,
+            action: #selector(selectASROnline),
+            keyEquivalent: ""
+        )
+        onlineItem.target = self
+        onlineItem.state = store.asrMode == .online ? .on : .off
+        submenu.addItem(onlineItem)
+
+        let downloaded = modelManager.catalog.filter { modelManager.downloadedModels.contains($0.id) }
+        if !downloaded.isEmpty {
+            submenu.addItem(NSMenuItem.separator())
+            for model in downloaded {
+                let item = NSMenuItem(
+                    title: model.name,
+                    action: #selector(selectLocalASRModel(_:)),
+                    keyEquivalent: ""
+                )
+                item.target = self
+                item.representedObject = model.id
+                item.state = (store.asrMode == .local && store.selectedModelId == model.id) ? .on : .off
+                submenu.addItem(item)
+            }
+        }
+        return submenu
+    }
+
+    private func makePostProcessingSubmenu() -> NSMenu {
+        let submenu = NSMenu()
+        let store = SettingsStore.shared
+
+        let offItem = NSMenuItem(
+            title: L10n.statusBarPostOff,
+            action: #selector(selectPostProcessingOff),
+            keyEquivalent: ""
+        )
+        offItem.target = self
+        offItem.state = !store.aiEnabled ? .on : .off
+        submenu.addItem(offItem)
+
+        submenu.addItem(NSMenuItem.separator())
+
+        let onlineTitle = store.aiModel.isEmpty ? store.aiProvider.displayName : "\(store.aiProvider.displayName) · \(store.aiModel)"
+        let onlineItem = NSMenuItem(
+            title: onlineTitle,
+            action: #selector(selectPostProcessingOnline),
+            keyEquivalent: ""
+        )
+        onlineItem.target = self
+        onlineItem.state = (store.aiEnabled && !store.useLocalAI) ? .on : .off
+        submenu.addItem(onlineItem)
+
+        if LLMModelManager.shared.isDownloaded {
+            let localItem = NSMenuItem(
+                title: L10n.statusBarPostLocalName,
+                action: #selector(selectPostProcessingLocal),
+                keyEquivalent: ""
+            )
+            localItem.target = self
+            localItem.state = (store.aiEnabled && store.useLocalAI) ? .on : .off
+            submenu.addItem(localItem)
+        }
+        return submenu
+    }
+
+    private func makeFormattingSubmenu() -> NSMenu {
+        let submenu = NSMenu()
+        let store = SettingsStore.shared
+
+        // Punctuation → nested submenu
+        let punctItem = NSMenuItem(title: L10n.punctuationHeader, action: nil, keyEquivalent: "")
+        let punctSubmenu = NSMenu()
+        let punctOptions: [(String, PunctuationMode)] = [
+            (L10n.keepOriginal, .keepOriginal),
+            (L10n.punctSpaceReplace, .spaceReplace),
+            (L10n.punctRemoveTrailing, .removeTrailing),
+            (L10n.punctKeepAll, .keepAll),
+        ]
+        for (title, mode) in punctOptions {
+            let item = NSMenuItem(title: title, action: #selector(selectPunctuationMode(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = mode.rawValue
+            item.state = store.punctuationMode == mode ? .on : .off
+            punctSubmenu.addItem(item)
+        }
+        punctItem.submenu = punctSubmenu
+        submenu.addItem(punctItem)
+
+        // English/number spacing → nested submenu
+        let spacingItem = NSMenuItem(title: L10n.spacingHeader, action: nil, keyEquivalent: "")
+        let spacingSubmenu = NSMenu()
+        let spacingOptions: [(String, EnglishSpacingMode)] = [
+            (L10n.keepOriginal, .keepOriginal),
+            (L10n.spacingNone, .noSpaces),
+            (L10n.spacingAdd, .addSpaces),
+        ]
+        for (title, mode) in spacingOptions {
+            let item = NSMenuItem(title: title, action: #selector(selectEnglishSpacingMode(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = mode.rawValue
+            item.state = store.englishSpacingMode == mode ? .on : .off
+            spacingSubmenu.addItem(item)
+        }
+        spacingItem.submenu = spacingSubmenu
+        submenu.addItem(spacingItem)
+
+        return submenu
+    }
+
+    @objc private func selectPunctuationMode(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String,
+              let mode = PunctuationMode(rawValue: raw) else { return }
+        SettingsStore.shared.punctuationMode = mode
+    }
+
+    @objc private func selectEnglishSpacingMode(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String,
+              let mode = EnglishSpacingMode(rawValue: raw) else { return }
+        SettingsStore.shared.englishSpacingMode = mode
+    }
+
+    @objc private func selectASROnline() {
+        SettingsStore.shared.asrMode = .online
+    }
+
+    @objc private func selectLocalASRModel(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String else { return }
+        SettingsStore.shared.asrMode = .local
+        SettingsStore.shared.selectedModelId = id
+    }
+
+    @objc private func selectPostProcessingOff() {
+        SettingsStore.shared.aiEnabled = false
+    }
+
+    @objc private func selectPostProcessingOnline() {
+        SettingsStore.shared.aiEnabled = true
+        SettingsStore.shared.useLocalAI = false
+    }
+
+    @objc private func selectPostProcessingLocal() {
+        SettingsStore.shared.aiEnabled = true
+        SettingsStore.shared.useLocalAI = true
+        LLMModelManager.shared.ensureLoaded()
     }
 
     private func setupComponents() {

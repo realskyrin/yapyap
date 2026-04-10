@@ -96,6 +96,7 @@ class LLMModelManager: ObservableObject {
                 self.isDownloading = false
                 self.downloadProgress = 1.0
                 self.stopDiskPolling()
+                Self.flushPostLoadCache(label: "download")
                 logger.info("Model loaded successfully")
             } catch {
                 logger.error("Model load failed: \(error.localizedDescription)")
@@ -152,6 +153,27 @@ class LLMModelManager: ObservableObject {
             }
         }
         return total
+    }
+
+    /// Return MLX's transient load-time buffers to the OS immediately after a
+    /// successful model load. `loadContainer()` streams safetensors through
+    /// intermediate buffers while placing the weights into their final MLX
+    /// arrays; once the load completes those intermediate buffers are freed by
+    /// Swift ARC, but — per the same behavior documented on `unload()` —
+    /// MLX parks them in `cacheMemory` for reuse instead of releasing them to
+    /// the OS. The result is a ~4 GB RSS peak (weights + leftover cache)
+    /// that only drops back to ~2.2 GB later, when the first inference's
+    /// `clearSessionState()` happens to flush the cache. Flushing here makes
+    /// the drop happen right after load, before the user notices it.
+    private static func flushPostLoadCache(label: String) {
+        let before = MLX.Memory.snapshot()
+        MLX.Memory.clearCache()
+        let after = MLX.Memory.snapshot()
+        let beforeActive = before.activeMemory / (1024 * 1024)
+        let beforeCache = before.cacheMemory / (1024 * 1024)
+        let afterActive = after.activeMemory / (1024 * 1024)
+        let afterCache = after.cacheMemory / (1024 * 1024)
+        logger.info("LLM post-load cache flush (\(label, privacy: .public)). MLX active=\(beforeActive, privacy: .public)→\(afterActive, privacy: .public)MB cache=\(beforeCache, privacy: .public)→\(afterCache, privacy: .public)MB")
     }
 
     /// Release the loaded model from memory while keeping the on-disk cache intact.
@@ -235,6 +257,7 @@ class LLMModelManager: ObservableObject {
 
                 self.modelContainer = container
                 self.isLoading = false
+                Self.flushPostLoadCache(label: "ensureLoaded")
                 logger.info("Model loaded from local directory")
             } catch {
                 logger.error("Model load failed: \(error.localizedDescription)")
